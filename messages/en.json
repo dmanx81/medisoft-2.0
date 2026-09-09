@@ -1,0 +1,19 @@
+{
+  "locale": "en",
+  "nav": {"home":"Home","product":"Product","laboratories":"For Laboratories","clinics":"For Clinics","features":"Features","security":"Security","pricing":"Pricing","about":"About","contact":"Contact","demo":"Try Demo","login":"Login"},
+  "hero": {"eyebrow":"Built for modern clinics & laboratories","title":"Every patient. Every sample.","accent":"One clear workflow.","body":"MEDISOFT helps clinics and laboratories manage patients, laboratory orders, results, reports and daily operations from one secure and easy-to-use platform.","primary":"Request a Demo","secondary":"Try MEDISOFT","trust1":"No installation required","trust2":"Secure access","trust3":"Built for clinics and laboratories"},
+  "dashboard": {"live":"Central Lab · Live","workspace":"Workspace","overview":"Overview","patients":"Patients","orders":"Lab orders","results":"Results","reports":"Reports","title":"Laboratory overview","today":"Today","progress":"In progress","validate":"To validate","completed":"Completed","latest":"Latest laboratory orders","new":"+ New order"},
+  "problem": {"eyebrow":"From fragmented to focused","title":"Laboratory work shouldn’t depend on disconnected systems.","body":"Paper records, isolated spreadsheets and repeated data entry make every result slower and harder to trust.","before":"Before MEDISOFT","after":"With MEDISOFT","beforeFlow":"Reception → Paper → Spreadsheet → Printer","afterFlow":"Reception → MEDISOFT → Validation → Report","items":["Manual patient records","Separate spreadsheets","Slow result preparation","Difficult patient history lookup"]},
+  "features": {"eyebrow":"One connected platform","title":"Everything your team needs to move from order to answer.","body":"A focused workspace for reception, laboratory staff and clinic managers.","items":[
+    {"title":"Patient Management","body":"Keep patient information, laboratory history and previous results in one place."},
+    {"title":"Laboratory Orders","body":"Create laboratory orders and select required analyses quickly."},
+    {"title":"Result Management","body":"Enter, review and validate laboratory results with confidence."},
+    {"title":"Reference Ranges","body":"Automatically display configured ranges and flag abnormal results."},
+    {"title":"Laboratory Reports","body":"Generate professional PDF and printable laboratory reports."},
+    {"title":"Billing","body":"Manage analysis prices, payments and basic clinic billing."}
+  ]},
+  "workflow": {"eyebrow":"A workflow your team can see","title":"From registration to final report, without losing context.","steps":["Patient Registration","Select Tests","Collect Sample","Enter Results","Validate Results","Generate Report","Patient History"]},
+  "security": {"eyebrow":"Security by design","title":"Clinical data handled with clarity and control.","body":"Role-based access, activity history and secure cloud access help your team work responsibly from anywhere.","items":["Role-based permissions","Audit-ready activity history","Encrypted connections","Controlled result validation"]},
+  "cta": {"title":"Give your laboratory a clearer working day.","body":"See how MEDISOFT can fit your clinic, your tests and your team.","primary":"Request your demo","secondary":"Explore the product"},
+  "footer": {"copy":"Clinic and laboratory management, made clear.","rights":"© 2026 MEDISOFT. All rights reserved."}
+}

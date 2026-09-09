@@ -1,0 +1,19 @@
+{
+  "locale": "sq",
+  "nav": {"home":"Kryefaqja","product":"Produkti","laboratories":"Për Laboratorë","clinics":"Për Klinika","features":"Funksionet","security":"Siguria","pricing":"Çmimet","about":"Rreth Nesh","contact":"Kontakt","demo":"Provo Demo","login":"Hyr"},
+  "hero": {"eyebrow":"Ndërtuar për klinika dhe laboratorë modernë","title":"Çdo pacient. Çdo mostër.","accent":"Një rrjedhë e qartë pune.","body":"MEDISOFT ndihmon klinikat dhe laboratorët të menaxhojnë pacientët, analizat, rezultatet, raportet dhe punën e përditshme nga një platformë e vetme dhe e sigurt.","primary":"Kërko një Demo","secondary":"Provo MEDISOFT","trust1":"Pa instalim","trust2":"Qasje e sigurt","trust3":"Për klinika dhe laboratorë"},
+  "dashboard": {"live":"Laboratori Qendror · Aktiv","workspace":"Hapësira e punës","overview":"Përmbledhje","patients":"Pacientët","orders":"Analizat","results":"Rezultatet","reports":"Raportet","title":"Përmbledhja e laboratorit","today":"Sot","progress":"Në proces","validate":"Për validim","completed":"Përfunduar","latest":"Analizat më të fundit","new":"+ Analizë e re"},
+  "problem": {"eyebrow":"Nga fragmentimi te fokusi","title":"Puna laboratorike nuk duhet të varet nga sisteme të shkëputura.","body":"Dokumentet në letër, tabelat e ndara dhe hedhja e përsëritur e të dhënave e bëjnë çdo rezultat më të ngadaltë.","before":"Para MEDISOFT","after":"Me MEDISOFT","beforeFlow":"Recepsion → Letër → Tabelë → Printer","afterFlow":"Recepsion → MEDISOFT → Validim → Raport","items":["Kartela manuale të pacientëve","Tabela të ndara","Përgatitje e ngadaltë e rezultateve","Kërkim i vështirë i historikut"]},
+  "features": {"eyebrow":"Një platformë e lidhur","title":"Gjithçka që i duhet ekipit, nga porosia te përgjigjja.","body":"Një hapësirë e fokusuar për recepsionin, laboratorin dhe drejtuesit e klinikës.","items":[
+    {"title":"Menaxhimi i Pacientëve","body":"Të dhënat, historiku i analizave dhe rezultatet e mëparshme në një vend."},
+    {"title":"Regjistrimi i Analizave","body":"Krijoni porositë laboratorike dhe zgjidhni analizat e nevojshme shpejt."},
+    {"title":"Menaxhimi i Rezultateve","body":"Regjistroni, kontrolloni dhe validoni rezultatet laboratorike."},
+    {"title":"Vlerat Referencë","body":"Shfaqje automatike e intervaleve referencë dhe rezultateve jashtë normales."},
+    {"title":"Raporte Laboratorike","body":"Gjeneroni raporte profesionale laboratorike në PDF dhe për printim."},
+    {"title":"Pagesat dhe Faturimi","body":"Menaxhoni çmimet e analizave, pagesat dhe faturimin bazë."}
+  ]},
+  "workflow": {"eyebrow":"Një rrjedhë pune e dukshme","title":"Nga regjistrimi te raporti final, pa humbur kontekstin.","steps":["Regjistrimi i Pacientit","Zgjedhja e Analizave","Marrja e Mostrës","Vendosja e Rezultateve","Validimi","Raporti","Historiku i Pacientit"]},
+  "security": {"eyebrow":"Siguri në themel","title":"Të dhënat klinike me qartësi dhe kontroll.","body":"Rolet e përcaktuara, historiku i veprimeve dhe qasja e sigurt në cloud e ndihmojnë ekipin të punojë me përgjegjësi.","items":["Leje sipas rolit","Historik i plotë veprimesh","Lidhje të enkriptuara","Validim i kontrolluar"]},
+  "cta": {"title":"Jepini laboratorit tuaj një ditë pune më të qartë.","body":"Shikoni si MEDISOFT përshtatet me klinikën, analizat dhe ekipin tuaj.","primary":"Kërko demonstrimin","secondary":"Eksploro produktin"},
+  "footer": {"copy":"Menaxhimi i klinikës dhe laboratorit, i bërë i qartë.","rights":"© 2026 MEDISOFT. Të gjitha të drejtat e rezervuara."}
+}
