@@ -7,3 +7,7 @@ export default async function LocalizedHome({ params }: { params: Promise<{ loca
   if (!isLocale(locale)) notFound();
   return <HomePage locale={locale} dict={getDictionary(locale)}/>;
 }
+
+export function generateStaticParams() {
+  return [{ locale: "en" }, { locale: "sq" }];
+}

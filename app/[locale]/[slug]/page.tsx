@@ -10,3 +10,12 @@ export default async function Page({ params }: { params: Promise<{ locale: strin
   if (!isLocale(locale) || !slugs.includes(slug as Slug)) notFound();
   return <InnerPage locale={locale} slug={slug as Slug} dict={getDictionary(locale)}/>;
 }
+
+export function generateStaticParams() {
+  const locales = ["en", "sq"];
+  const slugs = ["product", "laboratories", "clinics", "features", "security", "pricing", "about", "contact"];
+
+  return locales.flatMap((locale) =>
+    slugs.map((slug) => ({ locale, slug }))
+  );
+}

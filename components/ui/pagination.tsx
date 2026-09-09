@@ -78,7 +78,7 @@ function PaginationPrevious({
       className={cn('pl-1.5!', className)}
       {...props}
     >
-      <ChevronLeftIcon data-icon="inline-start" className="cn-rtl-flip" />
+      <ChevronLeftIcon aria-hidden="true" data-icon="inline-start" className="cn-rtl-flip" />
       <span className="hidden sm:block">{text}</span>
     </PaginationLink>
   );
@@ -97,7 +97,7 @@ function PaginationNext({
       {...props}
     >
       <span className="hidden sm:block">{text}</span>
-      <ChevronRightIcon data-icon="inline-end" className="cn-rtl-flip" />
+      <ChevronRightIcon aria-hidden="true" data-icon="inline-end" className="cn-rtl-flip" />
     </PaginationLink>
   );
 }
@@ -116,7 +116,7 @@ function PaginationEllipsis({
       )}
       {...props}
     >
-      <MoreHorizontalIcon />
+      <MoreHorizontalIcon aria-hidden="true" />
       <span className="sr-only">More pages</span>
     </span>
   );
