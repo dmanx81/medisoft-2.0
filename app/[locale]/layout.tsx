@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description:
     "A secure platform for patients, laboratory workflows and medical results.",
   metadataBase: new URL(
-    "https://medisoft-lab.sacred-emu-5666.chatgpt.site",
+    "https://medisoftlabs.online",
   ),
   openGraph: {
     title: "MEDISOFT — Laboratory management, made clear",
