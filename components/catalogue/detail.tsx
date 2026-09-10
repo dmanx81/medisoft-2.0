@@ -30,6 +30,7 @@ import {
 } from '@/features/catalogue/validation';
 import {
   ageBand,
+  compactNumber,
   rangeText,
   resultTypeLabels,
   sexLabels,
@@ -392,6 +393,7 @@ export function CatalogueDetail({
                   <NativeSelect
                     id="range-lower-op"
                     aria-label="Lower operator"
+                    className="min-w-16"
                     value={values.lower_operator}
                     onChange={(event) =>
                       change(
@@ -424,6 +426,7 @@ export function CatalogueDetail({
                   <NativeSelect
                     id="range-upper-op"
                     aria-label="Upper operator"
+                    className="min-w-16"
                     value={values.upper_operator}
                     onChange={(event) =>
                       change(
@@ -586,8 +589,8 @@ export function CatalogueDetail({
                     {rangeText(range)}
                     {range.critical_low || range.critical_high ? (
                       <span className="block text-xs text-slate">
-                        Critical {range.critical_low || '—'}–
-                        {range.critical_high || '—'}
+                        Critical {compactNumber(range.critical_low) || '—'}–
+                        {compactNumber(range.critical_high) || '—'}
                       </span>
                     ) : null}
                   </TableCell>

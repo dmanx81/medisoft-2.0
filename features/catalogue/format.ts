@@ -25,13 +25,19 @@ export const ageUnitLabels: Record<string, string> = {
   MONTHS: 'months',
   DAYS: 'days',
 };
+export function compactNumber(value: string) {
+  if (!value) return '';
+  const n = Number(value);
+  return Number.isFinite(n) ? String(n) : value;
+}
 export function ageBand(range: Pick<LabRange, 'age_min' | 'age_max' | 'age_unit'>) {
   const unit = ageUnitLabels[range.age_unit] ?? range.age_unit.toLowerCase();
-  if (!range.age_min && !range.age_max) return 'Any age';
-  if (range.age_min && range.age_max)
-    return `${range.age_min}–${range.age_max} ${unit}`;
-  if (range.age_min) return `≥${range.age_min} ${unit}`;
-  return `≤${range.age_max} ${unit}`;
+  const min = compactNumber(range.age_min);
+  const max = compactNumber(range.age_max);
+  if (!min && !max) return 'Any age';
+  if (min && max) return `${min}–${max} ${unit}`;
+  if (min) return `≥${min} ${unit}`;
+  return `≤${max} ${unit}`;
 }
 function operatorMark(operator: string, side: 'lower' | 'upper') {
   if (side === 'lower') return operator === 'GT' ? '>' : '≥';
@@ -43,14 +49,14 @@ export function rangeText(range: LabRange) {
   const lower =
     range.lower_bound === ''
       ? ''
-      : `${operatorMark(range.lower_operator, 'lower')}${range.lower_bound}`;
+      : `${operatorMark(range.lower_operator, 'lower')}${compactNumber(range.lower_bound)}`;
   const upper =
     range.upper_bound === ''
       ? ''
-      : `${operatorMark(range.upper_operator, 'upper')}${range.upper_bound}`;
+      : `${operatorMark(range.upper_operator, 'upper')}${compactNumber(range.upper_bound)}`;
   const numeric =
     lower && upper
-      ? `${range.lower_bound}–${range.upper_bound}`
+      ? `${compactNumber(range.lower_bound)}–${compactNumber(range.upper_bound)}`
       : lower || upper || '';
   return [numeric, range.text_range].filter(Boolean).join(' · ');
 }

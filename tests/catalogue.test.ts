@@ -17,6 +17,7 @@ import {
   updateTest,
 } from '../features/catalogue/repository';
 import { catalogueSchema, rangeSchema } from '../features/catalogue/validation';
+import { ageBand, compactNumber } from '../features/catalogue/format';
 import { CatalogueError } from '../features/catalogue/types';
 import { hashPassword } from '../lib/auth/password';
 import type { Principal } from '../lib/auth/permissions';
@@ -170,6 +171,11 @@ void test('catalogue validation rejects invalid codes, numeric bounds and ages',
     rangeSchema.safeParse(rangeInput({ lower_bound: '', upper_bound: '', text_range: '' }).data)
       .success,
     false,
+  );
+  assert.equal(compactNumber('18.00'), '18');
+  assert.equal(
+    ageBand({ age_min: '18.00', age_max: '120.00', age_unit: 'YEARS' }),
+    '18–120 years',
   );
 });
 void test('create, read, update, search, category filter and deactivation retain identity', async () => {

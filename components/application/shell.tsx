@@ -115,8 +115,12 @@ export function ApplicationShell({
             /
           </span>
           <span className="text-sm font-medium">
-            {navigation.find((item) => item.href === pathname)?.label ??
-              'MEDISOFT'}
+            {navigation.find(
+              (item) =>
+                pathname === item.href ||
+                (item.href !== '/app' &&
+                  !!pathname?.startsWith(`${item.href}/`)),
+            )?.label ?? 'MEDISOFT'}
           </span>
         </header>
         <main id="workspace" className="w-full p-5 lg:p-8">
