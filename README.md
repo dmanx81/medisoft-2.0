@@ -1,0 +1,84 @@
+# MEDISOFT 2.0
+
+Phase 1 adds the authenticated application foundation. Public English `/en`, Albanian `/sq`, demo and login branding remain intact. See [architecture](docs/architecture.md) for decisions, current limitations and Phase 2 scope.
+
+## Local development
+
+Node 22.13+ and PostgreSQL 17 are recommended. Use `npm ci`, copy `.env.example` to `.env.local`, and set your own database password. Do not commit environment files.
+
+```sh
+npm ci
+cp .env.example .env.local
+# Edit .env.local with your database URL and APP_ORIGIN=http://localhost:3000.
+# PostgreSQL can run independently, or use the Compose database:
+docker compose --env-file .env.local up -d db
+node --env-file=.env.local --import tsx scripts/migrate.ts
+# Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD (14+ characters) in .env.local.
+node --env-file=.env.local --import tsx scripts/seed.ts --dry-run
+node --env-file=.env.local --import tsx scripts/seed.ts
+npm run dev:node
+```
+
+Visit `/login` and sign in with the credentials you supplied. No default password or public registration exists. The seed preserves existing users/passwords and fails on conflicting organization membership. Set `DASHBOARD_DEMO=true` only in development to display synthetic orders and counts. Otherwise the dashboard has an empty state. Phase 2 adds six synthetic patient records across two development organizations; no real patient data is used.
+
+`npm run db:migrate` and `npm run db:seed` also work when the environment is already exported; the explicit Node commands above load `.env.local` without shell sourcing. Next.js loads `.env.local` itself. A missing database/configuration produces a generic authentication failure and never enables a bypass.
+
+## Verification
+
+```sh
+npm run lint
+npm run typecheck
+npm test
+npm run build:node
+```
+
+Tests use disposable PGlite databases (actual PostgreSQL engine, no external database needed). They cover role grants, validation, origin/session rejection, password hashing, organization isolation, composite foreign keys, session expiry/disabled users, audit immutability, and rendered dashboard structure. HTTP route-protection smoke checks should run against `npm run dev:node` or `npm run start:node`: anonymous `/app` and nested application URLs redirect to `/login`; public `/en`, `/sq` and both demos remain accessible.
+
+## Deployment
+
+The application uses standard **Next.js on Node + PostgreSQL**, independent of cloud provider. `npm run build:node` creates standalone output; `npm run start:node` starts the normal production server. `Dockerfile` packages standalone output. `compose.yaml` is an isolated starting point; it does not modify an existing VPS or proxy.
+
+The original scripts are retained as `dev:sites`, `build:sites`, `start:sites`, alongside Sites/Vinext/Cloudflare configuration for deployment history. `dev`, `build`, `start` now use standard Next.js; the explicit `:node` aliases do the same. They are **not the supported PostgreSQL application deployment**; use the standard or `:node` scripts for Phase 1. Hosted Sites cannot use this application's direct PostgreSQL connection. Do not publish this application through the old Sites pipeline.
+
+Before deploying, configure HTTPS `APP_ORIGIN`, a production database, migration-owner and limited runtime credentials. Docker app DATABASE_URL uses hostname `db`; host-side migrations use `localhost`. Run migrations explicitly against the target database before starting the app. Do not run the development seed in production. Initial production account provisioning, recovery/invitations and MFA need an audited operator workflow before customer onboarding.
+
+```sh
+# With deployment-specific environment values already set:
+docker compose config --quiet
+# Start database first, run migrations using the owner connection, then:
+docker compose up -d --build app
+```
+
+Keep ports bound to localhost behind the existing HTTPS reverse proxy. Give runtime credentials SELECT/INSERT/UPDATE on organizations/users as needed, SELECT/INSERT/DELETE on sessions, SELECT/INSERT/UPDATE on login_limits, and INSERT/SELECT only on audit_events; no schema ownership, DDL, audit mutation or truncate privileges. Rehearse encrypted backups and restores. Never delete the named volume during upgrades. Back up before migrations; applied migrations have checksums and must not be edited.
+
+Authentication uses database sessions with 8-hour expiry, HttpOnly cookies, production Secure cookies, origin checks and a shared 5-attempt/15-minute account throttle. A perimeter request-size and IP rate limit is also recommended before public rollout. Logs must never contain credentials, request bodies, patient records or session tokens. Expired session/throttle maintenance is an operator task; no raw/audit data cleanup is provided.
+
+## Scope
+
+Organization/user/role schema, login/logout, protected shell, dashboard, module empty states, audit foundation and provider-neutral AI contracts are implemented. AI defaults off and no model calls exist. Patient CRM is implemented in Phase 2. Laboratory workflows, result validation, billing and user management remain future work.
+
+**Phase 2:** organization-scoped Patient CRM is implemented. See [Patient CRM](docs/patient-crm.md) for schema, permissions, duplicate handling, audit behavior and limitations.
+
+Run HTTP boundary checks against a running server with `SMOKE_ORIGIN=http://localhost:3000 npm run test:http` (APP_ORIGIN must match). These verify every module redirect, public bilingual routes, origin checks, oversized form rejection and invalid credentials.
+
+Lint keeps all checks on application code; scoped overrides account for inherited generic UI primitive patterns (polymorphic labels/links, roles and third-party compiler diagnostics). No generated UI primitives were rewritten.
+
+## Patient CRM development
+
+Apply both migrations using the existing migration command, then rerun the development seed if desired. Migration 001 has not changed. Sign in with your supplied administrator credentials and open `/app/patients`. Search terms remain in POST bodies; patients are addressed by UUID. Receptionists can create/edit; doctors are read-only. Inactive records are retained.
+
+```sh
+node --env-file=.env.local --import tsx scripts/migrate.ts
+node --env-file=.env.local --import tsx scripts/seed.ts --dry-run
+node --env-file=.env.local --import tsx scripts/seed.ts
+npm test
+npm run test:api
+SMOKE_ORIGIN=http://localhost:3000 npm run test:http
+npm run build
+npm run typecheck
+npm run lint
+```
+
+Run build and typecheck sequentially because the build regenerates route types. API integration tests execute real handlers and PostgreSQL SQL using PGlite; only the framework session/pool boundary is mocked using Node's experimental module-mock facility (Node 22.13+). Live HTTP tests independently verify session rejection and preservation of public routes. Docker/PostgreSQL network verification remains separate.
+
+Grant the runtime role SELECT/INSERT/UPDATE on patients and patient_counters, retaining existing organization/user/audit privileges. Do not grant patient DELETE/TRUNCATE or audit UPDATE/DELETE/TRUNCATE. Include patient tables in encrypted backups and restore exercises.
