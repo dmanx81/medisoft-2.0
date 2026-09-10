@@ -427,7 +427,7 @@ void test('password hash changes revoke existing sessions and seed remains idemp
     await seedCatalogue(db, a.organizationId, a.userId, 1);
     await seedCatalogue(db, b.organizationId, b.userId, 2);
     await db.query('COMMIT');
-    assert.equal((await listTests(db, a, {})).total, 4);
+    assert.equal((await listTests(db, a, {})).total, 6);
     assert.equal((await listTests(db, b, { query: 'GLU' })).total, 1);
     const gluA = (await listTests(db, a, { query: 'GLU' })).tests[0];
     const current = await getTest(db, a, gluA.id);

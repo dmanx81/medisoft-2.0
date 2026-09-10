@@ -62,6 +62,8 @@ export default async function PatientPage({
       <PatientDetail
         patient={patient}
         canActivity={can(user.role, 'patients:activity')}
+        canReadOrders={can(user.role, 'orders:read')}
+        canCreateOrders={can(user.role, 'orders:create')}
       />
     </div>
   );

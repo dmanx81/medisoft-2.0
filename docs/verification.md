@@ -7,7 +7,8 @@ Validation is performed on the local checkout, with synthetic data only. No live
 - Unit/engine tests for organization validation, permission grants, session tokens, password verification, live session expiry and account disabling, two-organization isolation, composite foreign keys, append-only audit events, transactional login/logout and audit-failure rollback, account throttling (failures only; successful login resets the counter), dashboard and application shell.
 - Patient CRM tests for validation, create/update, duplicates, tenant isolation, permissions and audit.
 - Laboratory catalogue tests for create/read/update/deactivate, search and category filtering, duplicate codes, reference-range create/replace/retire, immutable historical bounds, invalid ages/bounds/dates, tenant isolation, permissions and audit.
-- HTTP checks against Next.js for all protected module URLs, public English/Albanian pages and demos, forged session cookie rejection, origin validation, invalid input and bounded request bodies. Catalogue pages and APIs deny unauthenticated access and do not expose DELETE.
+- Laboratory order and specimen tests for draft/place, catalogue snapshots, derived collection progress, specimen–test linking, compatibility, rejection with replacement, cancellation, RBAC and cross-tenant 404s. Order APIs deny unauthenticated access and do not expose clinical DELETE.
+- HTTP checks against Next.js for all protected module URLs, public English/Albanian pages and demos, forged session cookie rejection, origin validation, invalid input and bounded request bodies. Catalogue and order pages/APIs deny unauthenticated access and do not expose hard deletion of clinical records.
 - Standard Next.js production build.
 
 PGlite exercises PostgreSQL SQL semantics in-process. It does not verify a remote PostgreSQL connection, container networking, resource usage under concurrent load, or production proxy configuration. Docker's daemon is not running in this environment, so container startup has not been verified. These deployment checks remain required before customer rollout.
@@ -18,7 +19,7 @@ No real patient records, result validation, billing, invitations, password recov
 
 ## Local results
 
-Recorded after Phase 3 against PostgreSQL 17 and PGlite. Re-run the commands below on the current checkout.
+Recorded after Phase 4 against PostgreSQL 17 and PGlite. Re-run the commands below on the current checkout.
 
 ```sh
 npm run lint
@@ -29,6 +30,6 @@ npm run build:node
 SMOKE_ORIGIN=http://localhost:3000 npm run test:http
 ```
 
-PGlite covers application SQL and handlers. Real PostgreSQL 17 verification applies `003_lab_catalogue.sql` through `scripts/migrate.ts`, confirms idempotent re-runs, and exercises catalogue constraints on the saved development database.
+PGlite covers application SQL and handlers. Real PostgreSQL 17 verification applies `004_lab_orders_specimens.sql` through `scripts/migrate.ts`, confirms idempotent re-runs, and exercises order-number uniqueness, accession uniqueness, specimen-test foreign keys and a live GLU/ALT/CBC collection walkthrough on the saved development database.
 
 The Sites/Vinext toolchain is unchanged and still carries dependency advisories. It is not the supported PostgreSQL application runtime.

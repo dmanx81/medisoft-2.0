@@ -32,7 +32,7 @@ Mutations write append-only audit events (`LAB_TEST_CREATED`, `LAB_TEST_UPDATED`
 The existing Management → Tests route `/app/management/tests` lists, searches and filters tests. Create, edit, detail, activate/deactivate and range add/retire/replace are implemented. Hard deletion of tests or ranges is not exposed.
 
 ## Future snapshots
-Phase 4 orders should copy test code, name, unit, method and price onto ordered-test rows at order time. Phase 5 results should copy result type, measured value, unit, method, reference-range id and bounds, and a deterministic abnormal/critical flag. Changing the catalogue later must not rewrite those snapshots.
+Phase 4 orders copy test code, name, unit, method, specimen expectation and price onto ordered-test rows at order time. See [lab-orders-specimens.md](lab-orders-specimens.md). Phase 5 results should copy result type, measured value, unit, method, reference-range id and bounds, and a deterministic abnormal/critical flag. Changing the catalogue later must not rewrite those snapshots.
 
 ## Auth hardening included with this migration
 Successful logins no longer increment the account throttle; failures do, and a successful login resets the counter. Updating `users.password_hash` deletes that user’s sessions.

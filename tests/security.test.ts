@@ -35,7 +35,19 @@ void test('roles deny privileges by default and permit only named grants', () =>
   assert.equal(can('BIOCHEMIST', 'tests:edit'), true);
   assert.equal(can('VIEWER', 'tests:read'), false);
   assert.throws(() => authorize(principal, 'patients:read'), /Access denied/);
-  assert.equal(can('ORG_ADMIN', 'settings:read'), true);
+  assert.equal(can('RECEPTIONIST', 'orders:create'), true);
+  assert.equal(can('RECEPTIONIST', 'orders:place'), true);
+  assert.equal(can('RECEPTIONIST', 'orders:cancel'), false);
+  assert.equal(can('RECEPTIONIST', 'samples:collect'), false);
+  assert.equal(can('LAB_TECHNICIAN', 'patients:read'), true);
+  assert.equal(can('LAB_TECHNICIAN', 'samples:collect'), true);
+  assert.equal(can('LAB_TECHNICIAN', 'samples:receive'), true);
+  assert.equal(can('LAB_TECHNICIAN', 'orders:create'), false);
+  assert.equal(can('BIOCHEMIST', 'samples:reject'), true);
+  assert.equal(can('BIOCHEMIST', 'orders:cancel'), false);
+  assert.equal(can('DOCTOR', 'orders:read'), false);
+  assert.equal(can('VIEWER', 'orders:read'), false);
+  assert.equal(can('ORG_ADMIN', 'orders:cancel'), true);
 });
 void test('tenant helpers enforce identity even for platform administrators', () => {
   assert.deepEqual(organizationScope(principal), {
