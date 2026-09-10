@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { seedPatients } from './seed-patients';
+import { seedCatalogue } from './seed-catalogue';
 import { hashPassword } from '../lib/auth/password';
 import { organizationSchema, loginSchema } from '../lib/validation';
 if (process.env.NODE_ENV === 'production')
@@ -23,7 +24,7 @@ const org = organizationSchema.parse({
 });
 if (process.argv.includes('--dry-run')) {
   console.info(
-    'Dry run: upsert two development organizations, a primary administrator and a disabled secondary fixture user; insert six synthetic patients by stable UUID. Existing records/passwords remain unchanged.',
+    'Dry run: upsert two development organizations, a primary administrator and a disabled secondary fixture user; insert six synthetic patients and a laboratory catalogue by stable UUID. Existing records/passwords remain unchanged.',
   );
   process.exit(0);
 }
@@ -70,6 +71,7 @@ try {
     ])
   ).rows[0];
   await seedPatients(client, organization.id, primaryUser.id, 1);
+  await seedCatalogue(client, organization.id, primaryUser.id, 1);
   await client.query(
     "INSERT INTO organizations(name,slug,type,country) VALUES('Second Development Clinic','development-clinic-2','CLINIC','AL') ON CONFLICT(slug) DO NOTHING",
   );
@@ -92,6 +94,7 @@ try {
       'Secondary fixture account belongs to another organization',
     );
   await seedPatients(client, secondOrg.id, secondUser.id, 2);
+  await seedCatalogue(client, secondOrg.id, secondUser.id, 2);
   await client.query('COMMIT');
   console.info(
     'Development seed complete. Existing records and passwords were preserved.',

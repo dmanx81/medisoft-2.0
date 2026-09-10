@@ -55,7 +55,7 @@ void test('login and logout are audited atomically; throttling and credential fa
         .rows.length,
       1,
     );
-    for (let i = 0; i < 3; i++)
+    for (let i = 0; i < 5; i++)
       assert.equal(
         await authenticate(db, 'admin@example.test', 'incorrect'),
         null,
@@ -71,6 +71,15 @@ void test('login and logout are audited atomically; throttling and credential fa
     assert.ok(
       await authenticate(db, 'admin@example.test', password),
       'window expiry should allow login',
+    );
+    for (let i = 0; i < 4; i++)
+      assert.equal(
+        await authenticate(db, 'admin@example.test', 'incorrect'),
+        null,
+      );
+    assert.ok(
+      await authenticate(db, 'admin@example.test', password),
+      'successful login must not count toward the throttle and must reset it',
     );
     // Force audit failure: authentication must not leave an unaudited session.
     const before = (await db.query('SELECT * FROM sessions')).rows.length;

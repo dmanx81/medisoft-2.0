@@ -73,7 +73,7 @@ export const navigation: {
     permission: 'tests:read',
     group: 'Management',
     description:
-      'The laboratory test catalogue will be available in a future release.',
+      'Maintain the laboratory test catalogue and versioned reference ranges.',
   },
   {
     label: 'Users',

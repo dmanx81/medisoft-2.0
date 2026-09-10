@@ -43,4 +43,4 @@ The existing architecture is retained. `features/patients` holds strict shared v
 
 Migration 002 introduces immutable UUID/display identity, tenant-scoped counters and national-ID uniqueness, composite actor constraints and search indexes. Writes and audit events are transactional; version checks reject stale edits. No patient hard deletion is exposed. Search uses POST bodies, not URLs. New explicit permissions extend existing roles without changing prior grants. Read [patient-crm.md](patient-crm.md) for the detailed design and known limits.
 
-Phase 2 implements the previously proposed Patient CRM scope. Recommended next scope is test catalogue and laboratory order registration, with patient linkage and historical test snapshots; result validation and AI remain deferred.
+Phase 2 implements the previously proposed Patient CRM scope. Phase 3 implements the laboratory test catalogue and versioned reference ranges; see [lab-catalogue.md](lab-catalogue.md). Recommended next scope is laboratory orders and specimens linked to the patient UUID, with tenant-safe ordered-test snapshots. Result validation and AI remain deferred.

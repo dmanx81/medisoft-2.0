@@ -35,5 +35,5 @@ This phase includes no clinical module implementation or LLM execution. Overview
 
 Contains searches may scan the current organization's rows despite tenant/name/contact indexes. Measure query plans before scaling; add PostgreSQL trigram indexes or dedicated search when justified. Phone matching removes formatting only, without country-aware E.164 normalization. National ID formatting is generic, not country-specific validation. There is no merge workflow, identity verification service, field-level masking, data export, erasure workflow or regulatory compliance claim. Address access/recovery/MFA and deployment backup/restore controls from Phase 1 remain rollout prerequisites.
 
-## Suggested Phase 3
-A scoped test catalogue plus laboratory order registration linked to the patient UUID, with tenant-safe ordered-test snapshots, explicit status transitions, authorization and audit tests. Keep result entry, validation, billing, integrations and AI out of that phase until separately specified.
+## Suggested Phase 4
+Laboratory orders and specimens linked to the patient UUID, with tenant-safe ordered-test snapshots of catalogue code/name/unit/method/price, explicit status transitions, authorization and audit tests. Keep result entry, validation, billing, integrations and AI out of that phase until separately specified.

@@ -69,13 +69,13 @@ export function ApplicationShell({
                               render={<Link href={item.href} />}
                               isActive={
                                 pathname === item.href ||
-                                (item.href === '/app/patients' &&
-                                  pathname?.startsWith('/app/patients/'))
+                                (item.href !== '/app' &&
+                                  !!pathname?.startsWith(`${item.href}/`))
                               }
                               aria-current={
                                 pathname === item.href ||
-                                (item.href === '/app/patients' &&
-                                  pathname?.startsWith('/app/patients/'))
+                                (item.href !== '/app' &&
+                                  !!pathname?.startsWith(`${item.href}/`))
                                   ? 'page'
                                   : undefined
                               }

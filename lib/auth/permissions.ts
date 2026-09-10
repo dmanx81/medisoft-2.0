@@ -21,6 +21,8 @@ export const permissions = [
   'doctors:read',
   'billing:read',
   'tests:read',
+  'tests:create',
+  'tests:edit',
   'users:read',
   'settings:read',
 ] as const;
@@ -37,6 +39,7 @@ const grants: Record<Role, readonly Permission[]> = {
     'orders:read',
     'doctors:read',
     'billing:read',
+    'tests:read',
   ],
   LAB_TECHNICIAN: [
     'dashboard:read',
@@ -52,6 +55,8 @@ const grants: Record<Role, readonly Permission[]> = {
     'results:read',
     'reports:read',
     'tests:read',
+    'tests:create',
+    'tests:edit',
   ],
   DOCTOR: ['dashboard:read', 'patients:read', 'results:read', 'reports:read'],
   VIEWER: ['dashboard:read'],

@@ -18,15 +18,16 @@ export async function authenticate(
   email: string,
   password: string,
 ) {
+  const accountHash = digest(email);
   const limit = await db.query<{ attempts: number }>(
-    `INSERT INTO login_limits(account_hash) VALUES($1)
+    `INSERT INTO login_limits(account_hash,attempts) VALUES($1,0)
  ON CONFLICT(account_hash) DO UPDATE SET
- attempts=CASE WHEN login_limits.window_start < now()-interval '15 minutes' THEN 1 ELSE login_limits.attempts+1 END,
+ attempts=CASE WHEN login_limits.window_start < now()-interval '15 minutes' THEN 0 ELSE login_limits.attempts END,
  window_start=CASE WHEN login_limits.window_start < now()-interval '15 minutes' THEN now() ELSE login_limits.window_start END
  RETURNING attempts`,
-    [digest(email)],
+    [accountHash],
   );
-  if (limit.rows[0].attempts > 5) return null;
+  if (limit.rows[0].attempts >= 5) return null;
   const result = await db.query<{
     id: string;
     organization_id: string;
@@ -41,7 +42,16 @@ export async function authenticate(
     password,
     user?.password_hash ?? dummyPassword,
   );
-  if (!user || !correct || user.status !== 'ACTIVE') return null;
+  if (!user || !correct || user.status !== 'ACTIVE') {
+    await db.query(
+      `UPDATE login_limits SET
+ attempts=CASE WHEN window_start < now()-interval '15 minutes' THEN 1 ELSE attempts+1 END,
+ window_start=CASE WHEN window_start < now()-interval '15 minutes' THEN now() ELSE window_start END
+ WHERE account_hash=$1`,
+      [accountHash],
+    );
+    return null;
+  }
   const session = newSession();
   await db.query('BEGIN');
   try {
@@ -54,6 +64,10 @@ export async function authenticate(
       await db.query('ROLLBACK');
       return null;
     }
+    await db.query(
+      'UPDATE login_limits SET attempts=0, window_start=now() WHERE account_hash=$1',
+      [accountHash],
+    );
     await db.query(
       "INSERT INTO sessions(token_hash,organization_id,user_id,expires_at) VALUES($1,$2,$3,now()+interval '8 hours')",
       [session.hash, user.organization_id, user.id],

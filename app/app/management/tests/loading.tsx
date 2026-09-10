@@ -1,0 +1,11 @@
+import { Skeleton } from '@/components/ui/skeleton';
+export default function TestsLoading() {
+  return (
+    <output className="grid gap-4" aria-label="Loading laboratory tests">
+      <span className="sr-only">Loading laboratory tests…</span>
+      <Skeleton className="h-9 w-64" />
+      <Skeleton className="h-20 w-full" />
+      <Skeleton className="h-72 w-full" />
+    </output>
+  );
+}

@@ -28,6 +28,12 @@ void test('roles deny privileges by default and permit only named grants', () =>
   assert.equal(can('RECEPTIONIST', 'results:read'), false);
   assert.equal(can('LAB_TECHNICIAN', 'billing:read'), false);
   assert.equal(can('DOCTOR', 'users:read'), false);
+  assert.equal(can('RECEPTIONIST', 'tests:read'), true);
+  assert.equal(can('RECEPTIONIST', 'tests:edit'), false);
+  assert.equal(can('LAB_TECHNICIAN', 'tests:read'), true);
+  assert.equal(can('LAB_TECHNICIAN', 'tests:edit'), false);
+  assert.equal(can('BIOCHEMIST', 'tests:edit'), true);
+  assert.equal(can('VIEWER', 'tests:read'), false);
   assert.throws(() => authorize(principal, 'patients:read'), /Access denied/);
   assert.equal(can('ORG_ADMIN', 'settings:read'), true);
 });
