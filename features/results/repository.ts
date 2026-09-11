@@ -345,17 +345,16 @@ export async function getResultContext(
       (row) => row.order_test_id === test.id && row.is_current,
     ) ?? null;
   const ranges = await loadCandidateRanges(db, principal, test.lab_test_id);
+  const patient = (
+    await db.query<{ sex: string; date_of_birth: string }>(
+      `SELECT sex,COALESCE(date_of_birth::text,'') AS date_of_birth
+ FROM patients WHERE organization_id=$1 AND id=$2`,
+      [principal.organizationId, order.patient_id],
+    )
+  ).rows[0] ?? { sex: 'UNKNOWN', date_of_birth: '' };
   const selected = selectReferenceRange(
     ranges,
-    {
-      sex: (
-        await db.query<{ sex: string; date_of_birth: string }>(
-          `SELECT sex,COALESCE(date_of_birth::text,'') AS date_of_birth
- FROM patients WHERE organization_id=$1 AND id=$2`,
-          [principal.organizationId, order.patient_id],
-        )
-      ).rows[0] ?? { sex: 'UNKNOWN', date_of_birth: '' },
-    },
+    patient,
     test.method_snapshot,
     test.unit_symbol_snapshot,
   );

@@ -65,17 +65,6 @@ export function ResultPanel({
   const [reason, setReason] = useState('');
   const [context, setContext] = useState<ResultContext | null>(null);
   useEffect(() => {
-    setNumericValue(current?.numeric_value ?? '');
-    setTextValue(current?.text_value ?? '');
-    setBooleanValue(
-      current?.boolean_value === 'true'
-        ? 'true'
-        : current?.boolean_value === 'false'
-          ? 'false'
-          : '',
-    );
-  }, [current?.id, current?.numeric_value, current?.text_value, current?.boolean_value]);
-  useEffect(() => {
     if (!canRead || !eligible) return;
     let cancelled = false;
     void fetch(
@@ -187,9 +176,10 @@ export function ResultPanel({
           }}
         >
           {test.result_type_snapshot === 'NUMERIC' && (
-            <label className="text-xs font-medium">
+            <label className="text-xs font-medium" htmlFor={`result-numeric-${test.id}`}>
               Result ({test.unit_symbol_snapshot || 'numeric'})
               <Input
+                id={`result-numeric-${test.id}`}
                 className="mt-1"
                 value={numericValue}
                 onChange={(event) => setNumericValue(event.target.value)}
@@ -199,9 +189,10 @@ export function ResultPanel({
             </label>
           )}
           {test.result_type_snapshot === 'BOOLEAN' && (
-            <label className="text-xs font-medium">
+            <label className="text-xs font-medium" htmlFor={`result-boolean-${test.id}`}>
               Result
               <NativeSelect
+                id={`result-boolean-${test.id}`}
                 className="mt-1 h-9 w-full rounded-md border border-line bg-white px-2"
                 value={booleanValue}
                 onChange={(event) => setBooleanValue(event.target.value)}
@@ -215,9 +206,10 @@ export function ResultPanel({
           )}
           {(test.result_type_snapshot === 'TEXT' ||
             test.result_type_snapshot === 'CATEGORICAL') && (
-            <label className="text-xs font-medium">
+            <label className="text-xs font-medium" htmlFor={`result-text-${test.id}`}>
               Result
               <Input
+                id={`result-text-${test.id}`}
                 className="mt-1"
                 value={textValue}
                 onChange={(event) => setTextValue(event.target.value)}

@@ -17,6 +17,12 @@ import {
 import { resultActivityLabels } from '@/features/results/format';
 import { specimenLabels } from '@/features/catalogue/format';
 type Failure = { code?: string; message?: string; fields?: Record<string, string> };
+function currentResultId(order: LabOrder, testId: string) {
+  return (
+    order.results?.find((row) => row.order_test_id === testId && row.is_current)
+      ?.id ?? 'none'
+  );
+}
 export function OrderDetail({
   initial,
   activity: initialActivity,
@@ -230,6 +236,7 @@ export function OrderDetail({
                 canEnterResults ||
                 test.covering_status === 'RECEIVED') && (
                 <ResultPanel
+                  key={`${test.id}-${currentResultId(order, test.id)}`}
                   order={order}
                   test={test}
                   results={order.results ?? []}

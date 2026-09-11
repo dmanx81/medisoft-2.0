@@ -291,7 +291,7 @@ void test('result API enforces origin, tenant scope, workflow and permissions', 
     });
     assert.equal(history.status, 200);
     assert.equal(((await history.json()) as { id: string }[]).length, 2);
-    assert.equal((await deleteRoute.DELETE()).status, 405);
+    assert.equal(deleteRoute.DELETE().status, 405);
     principal = null;
     assert.equal(
       (
