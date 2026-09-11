@@ -384,23 +384,6 @@ void test('results attach to ordered tests, snapshot ranges and follow audited w
         String(error).includes('immutable') ||
         String(error).includes('Finalized'),
     );
-    await retireRange(db, a, gluA.id, rangeA.id, {
-      version: Number(rangeA.version),
-    });
-    await updateTest(db, a, gluA.id, {
-      data: {
-        ...testInput(categoryA.id, unitA.id, 'GLU').data,
-        method: 'Changed later',
-        is_active: true,
-      },
-      version: Number(gluA.version),
-    });
-    const afterCatalogue = await listResultsForOrder(db, a, verified.id);
-    const historical = afterCatalogue.find((row) => row.id === frozen.id)!;
-    assert.equal(historical.numeric_value, '69');
-    assert.equal(historical.flag, 'LOW');
-    assert.equal(historical.range_lower_snapshot, '70');
-    assert.equal(historical.method_snapshot, 'Hexokinase');
     await assert.rejects(
       amendResult(db, a, frozen.id, {
         numeric_value: '88',
@@ -423,6 +406,26 @@ void test('results attach to ordered tests, snapshot ranges and follow audited w
     assert.equal(latest.status, 'ENTERED');
     assert.equal(latest.flag, 'NORMAL');
     assert.equal(original.successor_id, latest.id);
+    await retireRange(db, a, gluA.id, rangeA.id, {
+      version: Number(rangeA.version),
+    });
+    await updateTest(db, a, gluA.id, {
+      data: {
+        ...testInput(categoryA.id, unitA.id, 'GLU').data,
+        method: 'Changed later',
+        is_active: true,
+      },
+      version: Number(gluA.version),
+    });
+    const afterCatalogue = await listResultsForOrder(db, a, verified.id);
+    const historical = afterCatalogue.find((row) => row.id === frozen.id)!;
+    const amendedAfter = afterCatalogue.find((row) => row.id === latest.id)!;
+    assert.equal(historical.numeric_value, '69');
+    assert.equal(historical.flag, 'LOW');
+    assert.equal(historical.range_lower_snapshot, '70');
+    assert.equal(historical.method_snapshot, 'Hexokinase');
+    assert.equal(amendedAfter.flag, 'NORMAL');
+    assert.equal(amendedAfter.method_snapshot, 'Hexokinase');
     const history = await listResultHistory(db, a, original.id);
     assert.equal(history.length, 2);
     const work = await listResultWork(db, a, { query: amended.order_number });
