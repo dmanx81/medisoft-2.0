@@ -95,6 +95,9 @@ void test('order detail shows collection actions only when permitted', () => {
     />,
   );
   assert.ok(html.includes('John'));
+  assert.ok(html.includes('LAB-2026-000001'));
+  assert.ok(html.includes('Ordered'));
+  assert.ok(html.includes('Urgent'));
   assert.ok(html.includes('Collect specimen'));
   assert.ok(html.includes('Glucose'));
   const readonly = renderToStaticMarkup(
@@ -111,4 +114,19 @@ void test('order detail shows collection actions only when permitted', () => {
   );
   assert.ok(!readonly.includes('Collect specimen'));
   assert.ok(!readonly.includes('Cancel order'));
+  const received = renderToStaticMarkup(
+    <OrderDetail
+      initial={{ ...order, status: 'RECEIVED' }}
+      activity={[]}
+      canEdit={false}
+      canPlace={false}
+      canCancel={false}
+      canCollect
+      canReceive
+      canReject
+    />,
+  );
+  assert.ok(received.includes('Received'));
+  assert.ok(!received.includes('Partially collected'));
+  assert.ok(!received.includes('Collect specimen'));
 });

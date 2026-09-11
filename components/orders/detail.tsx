@@ -91,6 +91,29 @@ export function OrderDetail({
   }
   return (
     <div className="grid gap-6">
+      <header className="mt-4 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-mono text-2xl font-semibold">
+              {order.order_number}
+            </h1>
+            <span className="rounded border border-line bg-white px-2 py-1 text-xs">
+              {orderStatusLabels[order.status]}
+            </span>
+            <span
+              className={`rounded border border-line bg-white px-2 py-1 text-xs ${
+                order.priority === 'URGENT' ? 'text-coral' : ''
+              }`}
+            >
+              {priorityLabels[order.priority]}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-slate">
+            {order.patient_first_name} {order.patient_last_name} ·{' '}
+            {order.patient_number}
+          </p>
+        </div>
+      </header>
       {failure && (
         <p className="rounded-md border border-coral/30 bg-white p-3 text-sm text-coral" role="alert">
           {failure.message || 'The action could not be completed.'}

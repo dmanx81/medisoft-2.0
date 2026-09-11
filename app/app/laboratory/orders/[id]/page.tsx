@@ -4,7 +4,6 @@ import { can } from '@/lib/auth/permissions';
 import { orderForPage } from '@/services/orders';
 import { OrderDetail } from '@/components/orders/detail';
 import { OrderAccessDenied } from '@/components/orders/access';
-import { orderStatusLabels, priorityLabels } from '@/features/orders/format';
 export const metadata = {
   title: 'Laboratory order — MEDISOFT',
   referrer: 'no-referrer',
@@ -30,25 +29,6 @@ export default async function OrderPage({
           Laboratory order saved.
         </output>
       )}
-      <header className="mb-6 mt-4 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-mono text-2xl font-semibold">
-              {order.order_number}
-            </h1>
-            <span className="rounded border border-line bg-white px-2 py-1 text-xs">
-              {orderStatusLabels[order.status]}
-            </span>
-            <span className="rounded border border-line bg-white px-2 py-1 text-xs">
-              {priorityLabels[order.priority]}
-            </span>
-          </div>
-          <p className="mt-2 text-sm text-slate">
-            {order.patient_first_name} {order.patient_last_name} ·{' '}
-            {order.patient_number}
-          </p>
-        </div>
-      </header>
       <OrderDetail
         initial={order}
         activity={activity}
