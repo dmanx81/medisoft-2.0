@@ -26,7 +26,7 @@ export const navigation: {
     href: '/app/laboratory/orders',
     permission: 'orders:read',
     group: 'Laboratory',
-    description: 'Create and follow laboratory orders in a future release.',
+    description: 'Create laboratory orders and collect or accession specimens.',
   },
   {
     label: 'Samples',
@@ -34,7 +34,7 @@ export const navigation: {
     permission: 'samples:read',
     group: 'Laboratory',
     description:
-      'Sample collection and tracking will be available in a future release.',
+      'Standalone sample worklists will be available in a future release. Collection and accessioning are on each order.',
   },
   {
     label: 'Results',

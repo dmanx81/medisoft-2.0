@@ -182,6 +182,50 @@ export async function seedCatalogue(
               },
             ],
           },
+          {
+            index: 5,
+            code: 'ALT',
+            name: 'Alanine aminotransferase',
+            short: 'ALT',
+            category: 'BIOCHEMISTRY',
+            specimen: 'SERUM',
+            unit: 'U_L',
+            method: 'IFCC',
+            order: 15,
+            price: '7.00',
+            ranges: [
+              {
+                index: 6,
+                sex: 'ANY',
+                ageMin: '18',
+                ageMax: '120',
+                lower: '0',
+                upper: '41',
+              },
+            ],
+          },
+          {
+            index: 6,
+            code: 'CBC',
+            name: 'Complete blood count',
+            short: 'CBC',
+            category: 'HEMATOLOGY',
+            specimen: 'WHOLE_BLOOD',
+            unit: 'X10E9_L',
+            method: 'Automated hematology',
+            order: 25,
+            price: '10.00',
+            ranges: [
+              {
+                index: 7,
+                sex: 'ANY',
+                ageMin: '18',
+                ageMax: '120',
+                lower: '4.0',
+                upper: '11.0',
+              },
+            ],
+          },
         ]
       : [
           {

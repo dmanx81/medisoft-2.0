@@ -24,7 +24,7 @@ const org = organizationSchema.parse({
 });
 if (process.argv.includes('--dry-run')) {
   console.info(
-    'Dry run: upsert two development organizations, a primary administrator and a disabled secondary fixture user; insert six synthetic patients and a laboratory catalogue by stable UUID. Existing records/passwords remain unchanged.',
+    'Dry run: upsert two development organizations, a primary administrator and a disabled secondary fixture user; insert synthetic patients (including John Test in the primary organization) and a laboratory catalogue by stable UUID. Existing records/passwords remain unchanged.',
   );
   process.exit(0);
 }

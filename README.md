@@ -19,7 +19,7 @@ node --env-file=.env.local --import tsx scripts/seed.ts
 npm run dev:node
 ```
 
-Visit `/login` and sign in with the credentials you supplied. No default password or public registration exists. The seed preserves existing users/passwords and fails on conflicting organization membership. Set `DASHBOARD_DEMO=true` only in development to display synthetic orders and counts. Otherwise the dashboard has an empty state. Phase 2 adds six synthetic patient records across two development organizations; Phase 3 adds a synthetic laboratory catalogue (including a shared `GLU` code in both organizations). No real patient or clinical data is used.
+Visit `/login` and sign in with the credentials you supplied. No default password or public registration exists. The seed preserves existing users/passwords and fails on conflicting organization membership. Set `DASHBOARD_DEMO=true` only in development to display synthetic orders and counts. Otherwise the dashboard has an empty state. Phase 2 adds six synthetic patient records across two development organizations; Phase 3 adds a synthetic laboratory catalogue (including a shared `GLU` code in both organizations); Phase 4 adds `ALT` and `CBC` in the primary organization plus a synthetic John Test patient. No real patient or clinical data is used.
 
 `npm run db:migrate` and `npm run db:seed` also work when the environment is already exported; the explicit Node commands above load `.env.local` without shell sourcing. Next.js loads `.env.local` itself. A missing database/configuration produces a generic authentication failure and never enables a bypass.
 
@@ -33,7 +33,7 @@ npm run test:api
 npm run build:node
 ```
 
-Tests use disposable PGlite databases (actual PostgreSQL engine, no external database needed). They cover role grants, validation, origin/session rejection, password hashing, organization isolation, composite foreign keys, session expiry/disabled users, audit immutability, Patient CRM, the laboratory catalogue and rendered dashboard structure. HTTP route-protection smoke checks should run against `npm run dev:node` or `npm run start:node`: anonymous `/app` and nested application URLs redirect to `/login`; public `/en`, `/sq` and both demos remain accessible.
+Tests use disposable PGlite databases (actual PostgreSQL engine, no external database needed). They cover role grants, validation, origin/session rejection, password hashing, organization isolation, composite foreign keys, session expiry/disabled users, audit immutability, Patient CRM, the laboratory catalogue, laboratory orders/specimens and rendered dashboard structure. HTTP route-protection smoke checks should run against `npm run dev:node` or `npm run start:node`: anonymous `/app` and nested application URLs redirect to `/login`; public `/en`, `/sq` and both demos remain accessible.
 
 ## Deployment
 
@@ -50,17 +50,19 @@ docker compose config --quiet
 docker compose up -d --build app
 ```
 
-Keep ports bound to localhost behind the existing HTTPS reverse proxy. Give runtime credentials SELECT/INSERT/UPDATE on organizations/users as needed, SELECT/INSERT/DELETE on sessions, SELECT/INSERT/UPDATE on login_limits, and INSERT/SELECT only on audit_events; no schema ownership, DDL, audit mutation or truncate privileges. Grant the same SELECT/INSERT/UPDATE pattern on patients, patient_counters, lab_test_categories, lab_units, lab_tests and lab_reference_ranges. Do not grant DELETE/TRUNCATE on patient or catalogue tables. Rehearse encrypted backups and restores. Never delete the named volume during upgrades. Back up before migrations; applied migrations have checksums and must not be edited.
+Keep ports bound to localhost behind the existing HTTPS reverse proxy. Give runtime credentials SELECT/INSERT/UPDATE on organizations/users as needed, SELECT/INSERT/DELETE on sessions, SELECT/INSERT/UPDATE on login_limits, and INSERT/SELECT only on audit_events; no schema ownership, DDL, audit mutation or truncate privileges. Grant the same SELECT/INSERT/UPDATE pattern on patients, patient_counters, lab_test_categories, lab_units, lab_tests, lab_reference_ranges, lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests, lab_order_counters and lab_accession_counters. Grant DELETE on `lab_order_tests` only (draft test removal before an order is placed). Do not grant DELETE/TRUNCATE on patient, catalogue, order or specimen tables otherwise. Rehearse encrypted backups and restores. Never delete the named volume during upgrades. Back up before migrations; applied migrations have checksums and must not be edited.
 
 Authentication uses database sessions with 8-hour expiry, HttpOnly cookies, production Secure cookies, origin checks and a shared 5-attempt/15-minute account throttle. A perimeter request-size and IP rate limit is also recommended before public rollout. Logs must never contain credentials, request bodies, patient records or session tokens. Expired session/throttle maintenance is an operator task; no raw/audit data cleanup is provided.
 
 ## Scope
 
-Organization/user/role schema, login/logout, protected shell, dashboard, module empty states, audit foundation and provider-neutral AI contracts are implemented. AI defaults off and no model calls exist. Patient CRM is implemented in Phase 2. The laboratory test catalogue and versioned reference ranges are implemented in Phase 3. Laboratory orders, result validation, billing and user management remain future work.
+Organization/user/role schema, login/logout, protected shell, dashboard, module empty states, audit foundation and provider-neutral AI contracts are implemented. AI defaults off and no model calls exist. Patient CRM is implemented in Phase 2. The laboratory test catalogue and versioned reference ranges are implemented in Phase 3. Laboratory orders and specimen collection are implemented in Phase 4. Result validation, billing and user management remain future work.
 
 **Phase 2:** organization-scoped Patient CRM is implemented. See [Patient CRM](docs/patient-crm.md) for schema, permissions, duplicate handling, audit behavior and limitations.
 
 **Phase 3:** organization-scoped laboratory catalogue is implemented. See [Laboratory catalogue](docs/lab-catalogue.md) for schema, versioning, permissions, audit behavior and limitations.
+
+**Phase 4:** laboratory orders, ordered-test snapshots and specimen collection/accessioning are implemented. See [Laboratory orders and specimens](docs/lab-orders-specimens.md). Result entry, validation, reports, billing and analyzers remain future work.
 
 Run HTTP boundary checks against a running server with `SMOKE_ORIGIN=http://localhost:3000 npm run test:http` (APP_ORIGIN must match). These verify every module redirect, public bilingual routes, origin checks, oversized form rejection and invalid credentials.
 
@@ -84,11 +86,27 @@ npm run lint
 
 Run build and typecheck sequentially because the build regenerates route types. API integration tests execute real handlers and PostgreSQL SQL using PGlite; only the framework session/pool boundary is mocked using Node's experimental module-mock facility (Node 22.13+). Live HTTP tests independently verify session rejection and preservation of public routes. Docker/PostgreSQL network verification remains separate.
 
-Grant the runtime role SELECT/INSERT/UPDATE on patients, patient_counters, lab_test_categories, lab_units, lab_tests and lab_reference_ranges, retaining existing organization/user/audit privileges. Do not grant DELETE/TRUNCATE on those tables or audit UPDATE/DELETE/TRUNCATE. Include patient and catalogue tables in encrypted backups and restore exercises.
+Grant the runtime role SELECT/INSERT/UPDATE on patients, patient_counters, lab_test_categories, lab_units, lab_tests, lab_reference_ranges, lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests and the yearly counters, retaining existing organization/user/audit privileges. Grant DELETE only on `lab_order_tests` for draft removal. Do not grant DELETE/TRUNCATE on clinical tables or audit UPDATE/DELETE/TRUNCATE. Include those tables in encrypted backups and restore exercises.
 
 ## Laboratory catalogue development
 
 Apply migration 003 using the existing migration command, then rerun the development seed if desired. Migrations 001 and 002 have not changed. Sign in with your supplied administrator credentials and open `/app/management/tests`. Search terms remain in POST bodies; tests are addressed by UUID. Biochemists and administrators can create/edit; laboratory technicians and receptionists are read-only. Reference ranges are retired or replaced, never deleted.
+
+```sh
+node --env-file=.env.local --import tsx scripts/migrate.ts
+node --env-file=.env.local --import tsx scripts/seed.ts --dry-run
+node --env-file=.env.local --import tsx scripts/seed.ts
+npm test
+npm run test:api
+SMOKE_ORIGIN=http://localhost:3000 npm run test:http
+npm run build
+npm run typecheck
+npm run lint
+```
+
+## Laboratory orders and specimens
+
+Apply migration 004 using the existing migration command, then rerun the development seed if desired. Migrations 001–003 have not changed. Sign in with your supplied administrator credentials and open `/app/laboratory/orders`. Search terms remain in POST bodies; orders and specimens are addressed by UUID. Receptionists can create drafts and place orders. Laboratory technicians and biochemists collect, receive and reject specimens. Administrators may also cancel orders. Status changes use explicit action endpoints, not a generic status PATCH.
 
 ```sh
 node --env-file=.env.local --import tsx scripts/migrate.ts

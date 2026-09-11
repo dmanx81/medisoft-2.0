@@ -6,7 +6,7 @@
 ## Categories, specimens, units and result types
 Categories are an organization-owned table. Laboratories can add their own codes/names; the development seed inserts Hematology, Biochemistry, Hormones, Immunology, Urinalysis, Coagulation and Microbiology.
 
-Specimen type is a controlled CHECK enum (`SERUM`, `PLASMA`, `WHOLE_BLOOD`, `URINE`, `STOOL`, `SWAB`, `SPUTUM`, `OTHER`). Specimen tracking is Phase 4. A closed enum is the simplest option that still migrates cleanly: adding a value is a one-line CHECK change, and Phase 4 can introduce an organization-configurable table later without discarding these values.
+Specimen type is a controlled CHECK enum (`SERUM`, `PLASMA`, `WHOLE_BLOOD`, `URINE`, `STOOL`, `SWAB`, `SPUTUM`, `OTHER`). Phase 4 reuses this closed enum unchanged for orders and specimens. There is no configurable specimen catalogue and no multiple permitted types per catalogue test. A later migration can introduce those without discarding these values.
 
 Units are a small organization-owned table (`mg/dL`, `mmol/L`, and similar laboratory symbols). There is no conversion ontology.
 
@@ -32,7 +32,7 @@ Mutations write append-only audit events (`LAB_TEST_CREATED`, `LAB_TEST_UPDATED`
 The existing Management → Tests route `/app/management/tests` lists, searches and filters tests. Create, edit, detail, activate/deactivate and range add/retire/replace are implemented. Hard deletion of tests or ranges is not exposed.
 
 ## Future snapshots
-Phase 4 orders should copy test code, name, unit, method and price onto ordered-test rows at order time. Phase 5 results should copy result type, measured value, unit, method, reference-range id and bounds, and a deterministic abnormal/critical flag. Changing the catalogue later must not rewrite those snapshots.
+Phase 4 orders copy test code, name, unit, method, specimen expectation and price onto ordered-test rows at order time. See [lab-orders-specimens.md](lab-orders-specimens.md). Phase 5 results should copy result type, measured value, unit, method, reference-range id and bounds, and a deterministic abnormal/critical flag. Changing the catalogue later must not rewrite those snapshots.
 
 ## Auth hardening included with this migration
 Successful logins no longer increment the account throttle; failures do, and a successful login resets the counter. Updating `users.password_hash` deletes that user’s sessions.

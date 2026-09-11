@@ -4,12 +4,17 @@ import type { Patient } from '@/features/patients/types';
 import { formSections } from './fields';
 import { dateLabel } from '@/features/patients/format';
 import { Activity } from './activity';
+import { PatientOrders } from '@/components/orders/patient-orders';
 export function PatientDetail({
   patient,
   canActivity,
+  canReadOrders = false,
+  canCreateOrders = false,
 }: {
   patient: Patient;
   canActivity: boolean;
+  canReadOrders?: boolean;
+  canCreateOrders?: boolean;
 }) {
   return (
     <Tabs defaultValue="overview">
@@ -55,7 +60,22 @@ export function PatientDetail({
           ))}
         </div>
       </TabsContent>
-      {['Lab Orders', 'Results', 'Documents', 'Billing'].map((label) => (
+      <TabsContent value="Lab Orders" className="mt-4">
+        {canReadOrders ? (
+          <PatientOrders
+            patientId={patient.id}
+            canCreate={canCreateOrders}
+          />
+        ) : (
+          <div className="rounded-md border border-line bg-white p-8">
+            <h2 className="font-semibold">Lab Orders</h2>
+            <p className="mt-2 text-sm text-slate">
+              Your role cannot view laboratory orders for this patient.
+            </p>
+          </div>
+        )}
+      </TabsContent>
+      {['Results', 'Documents', 'Billing'].map((label) => (
         <TabsContent
           key={label}
           value={label}

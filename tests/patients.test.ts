@@ -350,7 +350,7 @@ void test('development fixtures are idempotent and preserve staff edits', async 
     await seedPatients(db, a.organizationId, a.userId, 1);
     await seedPatients(db, b.organizationId, b.userId, 2);
     await db.query('COMMIT');
-    assert.equal((await listPatients(db, a, {})).total, 3);
+    assert.equal((await listPatients(db, a, {})).total, 4);
     assert.equal((await listPatients(db, b, {})).total, 3);
     assert.equal(
       (await getPatient(db, a, patient.id)).first_name,
