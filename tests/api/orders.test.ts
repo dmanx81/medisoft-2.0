@@ -39,6 +39,8 @@ const specimenRoute =
   await import('../../app/api/lab-orders/[id]/specimens/route');
 const receiveRoute =
   await import('../../app/api/lab-specimens/[id]/receive/route');
+const rejectRoute =
+  await import('../../app/api/lab-specimens/[id]/reject/route');
 function request(
   method: string,
   body?: unknown,
@@ -246,6 +248,18 @@ void test('authenticated order API enforces origin, tenant scope, transitions an
       ).status,
       404,
     );
+    assert.equal(
+      (
+        await rejectRoute.POST(
+          request('POST', {
+            version: partial.specimens[0].version,
+            reason: 'hemolysed',
+          }),
+          receiveContext,
+        )
+      ).status,
+      404,
+    );
     principal = { ...users[0], role: 'VIEWER' };
     assert.equal((await detailRoute.GET(request('GET'), context)).status, 403);
     principal = { ...users[0], role: 'RECEPTIONIST' };
@@ -259,12 +273,41 @@ void test('authenticated order API enforces origin, tenant scope, transitions an
       ).status,
       403,
     );
+    assert.equal(
+      (
+        await rejectRoute.POST(
+          request('POST', {
+            version: partial.specimens[0].version,
+            reason: 'hemolysed',
+          }),
+          receiveContext,
+        )
+      ).status,
+      403,
+    );
+    principal = { ...users[0], role: 'DOCTOR' };
+    assert.equal((await detailRoute.GET(request('GET'), context)).status, 403);
+    principal = { ...users[0], role: 'BIOCHEMIST' };
+    assert.equal((await detailRoute.GET(request('GET'), context)).status, 200);
     principal = { ...users[0], role: 'LAB_TECHNICIAN' };
     const received = await receiveRoute.POST(
       request('POST', { version: partial.specimens[0].version }),
       receiveContext,
     );
     assert.equal(received.status, 200);
+    principal = { ...users[1], role: 'ORG_ADMIN' };
+    assert.equal(
+      (
+        await detailRoute.PATCH(
+          request('PATCH', {
+            data: payload.data,
+            version: 1,
+          }),
+          context,
+        )
+      ).status,
+      404,
+    );
     principal = users[0];
     const cancelDraft = await createRoute.POST(
       request('POST', {

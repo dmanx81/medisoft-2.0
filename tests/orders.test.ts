@@ -511,3 +511,201 @@ void test('order transitions, cancellation policy and role grants', async () => 
   assert.ok(events.includes('SPECIMEN_COLLECTED'));
   assert.ok(events.includes('SPECIMEN_RECEIVED'));
 });
+const orderInput = (patientId: string, testIds: string[]) => ({
+  data: {
+    patient_id: patientId,
+    priority: 'ROUTINE' as const,
+    ordering_physician_name: '',
+    clinical_notes: '',
+    fasting_status: 'UNKNOWN' as const,
+    external_reference: '',
+    test_ids: testIds,
+  },
+});
+void test('draft removal, OTHER compatibility, unique accessions and cross-order links', async () => {
+  const { db, a, b, patientA, patientB, gluA, altA, cbcA, gluB } =
+    await fixture();
+  const draft = await createOrder(db, a, orderInput(patientA.id, [gluA.id, altA.id]));
+  const removed = await removeOrderTest(db, a, draft.id, draft.tests[0].id, {
+    version: draft.version,
+  });
+  assert.equal(removed.tests.length, 1);
+  await assert.rejects(
+    createOrder(db, a, { ...orderInput(patientA.id, []), place: true }),
+    hasCode('VALIDATION'),
+  );
+  const otherTest = await createTest(
+    db,
+    a,
+    testInput(gluA.category_id, gluA.unit_id, 'MISC', {
+      name: 'Miscellaneous',
+      specimen_type: 'OTHER',
+    }),
+  );
+  const otherOrder = await createOrder(db, a, {
+    ...orderInput(patientA.id, [otherTest.id]),
+    place: true,
+  });
+  const otherCollected = await createSpecimen(db, a, otherOrder.id, {
+    specimen_type: 'URINE',
+    order_test_ids: [otherOrder.tests[0].id],
+    collection_notes: '',
+    version: otherOrder.version,
+  });
+  assert.equal(otherCollected.status, 'COLLECTED');
+  const first = await createOrder(db, a, {
+    ...orderInput(patientA.id, [gluA.id, altA.id, cbcA.id]),
+    place: true,
+  });
+  const second = await createOrder(db, a, {
+    ...orderInput(patientA.id, [gluA.id]),
+    place: true,
+  });
+  assert.notEqual(first.order_number, second.order_number);
+  await assert.rejects(
+    createSpecimen(db, a, first.id, {
+      specimen_type: 'SERUM',
+      order_test_ids: [second.tests[0].id],
+      collection_notes: '',
+      version: first.version,
+    }),
+    hasCode('VALIDATION'),
+  );
+  const orgBOrder = await createOrder(db, b, {
+    ...orderInput(patientB.id, [gluB.id]),
+    place: true,
+  });
+  await assert.rejects(
+    createSpecimen(db, b, orgBOrder.id, {
+      specimen_type: 'SERUM',
+      order_test_ids: [first.tests[0].id],
+      collection_notes: '',
+      version: orgBOrder.version,
+    }),
+    hasCode('VALIDATION'),
+  );
+  await assert.rejects(
+    updateOrder(db, b, first.id, {
+      data: {
+        patient_id: patientB.id,
+        priority: 'URGENT',
+        ordering_physician_name: '',
+        clinical_notes: '',
+        fasting_status: 'UNKNOWN',
+        external_reference: '',
+      },
+      version: first.version,
+    }),
+    hasCode('ORDER_NOT_FOUND'),
+  );
+  const partial = await createSpecimen(db, a, first.id, {
+    specimen_type: 'SERUM',
+    order_test_ids: [
+      first.tests.find((row) => row.code_snapshot === 'GLU')!.id,
+      first.tests.find((row) => row.code_snapshot === 'ALT')!.id,
+    ],
+    collection_notes: '',
+    version: first.version,
+  });
+  const complete = await createSpecimen(db, a, partial.id, {
+    specimen_type: 'WHOLE_BLOOD',
+    order_test_ids: [first.tests.find((row) => row.code_snapshot === 'CBC')!.id],
+    collection_notes: '',
+    version: partial.version,
+  });
+  const accessions = complete.specimens.map((row) => row.accession_number);
+  assert.equal(new Set(accessions).size, accessions.length);
+  await assert.rejects(
+    db.query(
+      `INSERT INTO lab_specimens(
+ organization_id,order_id,accession_number,specimen_type,status,collected_at,collected_by,
+ created_by,updated_by)
+ VALUES($1,$2,$3,'SERUM','COLLECTED',now(),$4,$4,$4)`,
+      [
+        a.organizationId,
+        complete.id,
+        complete.specimens[0].accession_number,
+        a.userId,
+      ],
+    ),
+    /duplicate|unique/i,
+  );
+  await assert.rejects(
+    db.query(
+      `INSERT INTO lab_specimen_tests(
+ organization_id,order_id,specimen_id,order_test_id,created_by)
+ VALUES($1,$2,$3,$4,$5)`,
+      [
+        a.organizationId,
+        complete.id,
+        complete.specimens[0].id,
+        orgBOrder.tests[0].id,
+        a.userId,
+      ],
+    ),
+    /foreign key|violates/i,
+  );
+  await assert.rejects(
+    rejectSpecimen(db, b, complete.specimens[0].id, {
+      version: complete.specimens[0].version,
+      reason: 'hemolysed',
+    }),
+    hasCode('SPECIMEN_NOT_FOUND'),
+  );
+  const asRole = (role: Role): Principal => ({ ...a, role });
+  await assert.rejects(
+    getOrder(db, asRole('VIEWER'), complete.id),
+    hasCode('FORBIDDEN'),
+  );
+  const techRead = await getOrder(db, asRole('LAB_TECHNICIAN'), complete.id);
+  assert.equal(techRead.id, complete.id);
+  const biochemistCollectOrder = await createOrder(db, a, {
+    ...orderInput(patientA.id, [gluA.id]),
+    place: true,
+  });
+  const biochemistCollected = await createSpecimen(
+    db,
+    asRole('BIOCHEMIST'),
+    biochemistCollectOrder.id,
+    {
+      specimen_type: 'SERUM',
+      order_test_ids: [biochemistCollectOrder.tests[0].id],
+      collection_notes: '',
+      version: biochemistCollectOrder.version,
+    },
+  );
+  assert.equal(biochemistCollected.status, 'COLLECTED');
+  await assert.rejects(
+    placeOrder(db, asRole('LAB_TECHNICIAN'), removed.id, {
+      version: removed.version,
+    }),
+    hasCode('FORBIDDEN'),
+  );
+  const cancelled = await cancelOrder(db, asRole('ORG_ADMIN'), second.id, {
+    version: second.version,
+    reason: 'Duplicate request',
+  });
+  assert.equal(cancelled.status, 'CANCELLED');
+  const preserved = (
+    await db.query<{ status: string; order_number: string }>(
+      'SELECT status,order_number FROM lab_orders WHERE organization_id=$1 AND id=$2',
+      [a.organizationId, cancelled.id],
+    )
+  ).rows[0];
+  assert.equal(preserved.status, 'CANCELLED');
+  assert.equal(preserved.order_number, second.order_number);
+  await assert.rejects(
+    updateOrder(db, a, complete.id, {
+      data: {
+        patient_id: patientA.id,
+        priority: 'ROUTINE',
+        ordering_physician_name: '',
+        clinical_notes: '',
+        fasting_status: 'UNKNOWN',
+        external_reference: '',
+      },
+      version: complete.version,
+    }),
+    hasCode('INVALID_ORDER_STATUS'),
+  );
+});

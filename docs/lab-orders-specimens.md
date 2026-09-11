@@ -75,7 +75,9 @@ Specimens begin at `COLLECTED` (no unused `EXPECTED` records).
 - `COLLECTED → RECEIVED`
 - `COLLECTED | RECEIVED → REJECTED` (reason, actor, timestamp required)
 
-Rejected rows are retained. A replacement is a **new** specimen. Compatibility uses the ordered-test specimen snapshot: types must match, except a test expecting `OTHER` may attach to any Phase 3 type. A serum specimen cannot cover a whole-blood test.
+Rejected rows are retained. A replacement is a **new** specimen.
+
+Phase 4 reuses the Phase 3 closed specimen-type enum unchanged (`SERUM`, `PLASMA`, `WHOLE_BLOOD`, `URINE`, `STOOL`, `SWAB`, `SPUTUM`, `OTHER`). There is no configurable specimen catalogue and no multiple permitted types per test. Compatibility is an exact match against the ordered-test snapshot, except a test expecting `OTHER` may attach to any of those types. A serum specimen cannot cover a whole-blood test.
 
 ## Permissions
 
