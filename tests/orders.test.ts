@@ -435,8 +435,15 @@ void test('order transitions, cancellation policy and role grants', async () => 
     }),
     hasCode('FORBIDDEN'),
   );
+  const doctorOrder = await getOrder(db, asRole('DOCTOR'), placed.id);
+  assert.equal(doctorOrder.id, placed.id);
   await assert.rejects(
-    getOrder(db, asRole('DOCTOR'), placed.id),
+    createSpecimen(db, asRole('DOCTOR'), placed.id, {
+      specimen_type: 'SERUM',
+      order_test_ids: [placed.tests[0].id],
+      collection_notes: '',
+      version: collected.version,
+    }),
     hasCode('FORBIDDEN'),
   );
   await assert.rejects(

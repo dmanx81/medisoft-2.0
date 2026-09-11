@@ -59,6 +59,7 @@ void test('authenticated order API enforces origin, tenant scope, transitions an
       '002_patient_crm.sql',
       '003_lab_catalogue.sql',
       '004_lab_orders_specimens.sql',
+      '005_lab_results.sql',
     ])
       await db.exec(
         await readFile(
@@ -286,7 +287,7 @@ void test('authenticated order API enforces origin, tenant scope, transitions an
       403,
     );
     principal = { ...users[0], role: 'DOCTOR' };
-    assert.equal((await detailRoute.GET(request('GET'), context)).status, 403);
+    assert.equal((await detailRoute.GET(request('GET'), context)).status, 200);
     principal = { ...users[0], role: 'BIOCHEMIST' };
     assert.equal((await detailRoute.GET(request('GET'), context)).status, 200);
     principal = { ...users[0], role: 'LAB_TECHNICIAN' };

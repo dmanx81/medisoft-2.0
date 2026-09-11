@@ -42,7 +42,7 @@ export const navigation: {
     permission: 'results:read',
     group: 'Laboratory',
     description:
-      'Result entry and validation will be available in a future release.',
+      'Enter, technically validate and clinically verify laboratory results.',
   },
   {
     label: 'Reports',

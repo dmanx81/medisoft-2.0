@@ -6,6 +6,7 @@ export const orderStatuses = [
   'PARTIALLY_COLLECTED',
   'COLLECTED',
   'RECEIVED',
+  'IN_PROCESS',
   'CANCELLED',
 ] as const;
 export const orderPriorities = ['ROUTINE', 'URGENT'] as const;

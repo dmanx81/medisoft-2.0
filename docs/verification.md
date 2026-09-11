@@ -8,14 +8,15 @@ Validation is performed on the local checkout, with synthetic data only. No live
 - Patient CRM tests for validation, create/update, duplicates, tenant isolation, permissions and audit.
 - Laboratory catalogue tests for create/read/update/deactivate, search and category filtering, duplicate codes, reference-range create/replace/retire, immutable historical bounds, invalid ages/bounds/dates, tenant isolation, permissions and audit.
 - Laboratory order and specimen tests for draft/place, catalogue snapshots, derived collection progress, specimen–test linking, compatibility, rejection with replacement, cancellation, RBAC and cross-tenant 404s. Order APIs deny unauthenticated access and do not expose clinical DELETE.
-- HTTP checks against Next.js for all protected module URLs, public English/Albanian pages and demos, forged session cookie rejection, origin validation, invalid input and bounded request bodies. Catalogue and order pages/APIs deny unauthenticated access and do not expose hard deletion of clinical records.
+- Laboratory result tests for ordered-test ownership, result-time snapshots, deterministic flags, `IN_PROCESS`, technical validation, clinical verification, amendments, RBAC and cross-tenant 404s. Result APIs deny unauthenticated access and do not expose clinical DELETE.
+- HTTP checks against Next.js for all protected module URLs, public English/Albanian pages and demos, forged session cookie rejection, origin validation, invalid input and bounded request bodies. Catalogue, order and result pages/APIs deny unauthenticated access and do not expose hard deletion of clinical records.
 - Standard Next.js production build.
 
 PGlite exercises PostgreSQL SQL semantics in-process. It does not verify a remote PostgreSQL connection, container networking, resource usage under concurrent load, or production proxy configuration. Docker's daemon is not running in this environment, so container startup has not been verified. These deployment checks remain required before customer rollout.
 
 The original Sites toolchain has npm audit findings in Vinext/image-size, Vite and Cloudflare/Wrangler dependencies. It is retained without an unrequested migration of the live marketing deployment. The new application uses standard Next.js, including its patched Sharp dependency. React, React DOM and React Server Components are updated together to 19.2.8. Do not expose the legacy development tools publicly; review/update them before any future Sites deployment.
 
-No real patient records, result validation, billing, invitations, password recovery or clinical AI are implemented. This is a tested development foundation, not a declaration of clinical production readiness.
+No real patient records, billing, invitations, password recovery or clinical AI are implemented. Result entry, technical validation, clinical verification and amendments are implemented for development use; this is not a declaration of clinical production readiness.
 
 ## Local results
 
@@ -30,6 +31,6 @@ npm run build:node
 SMOKE_ORIGIN=http://localhost:3000 npm run test:http
 ```
 
-PGlite covers application SQL and handlers. Real PostgreSQL 17 verification applies `004_lab_orders_specimens.sql` through `scripts/migrate.ts`, confirms idempotent re-runs, and exercises order-number uniqueness, accession uniqueness, specimen-test foreign keys and a live GLU/ALT/CBC collection walkthrough on the saved development database.
+PGlite covers application SQL and handlers. Real PostgreSQL 17 verification applies `005_lab_results.sql` through `scripts/migrate.ts`, confirms idempotent re-runs, and exercises result entry, flags, validation, verification and amendments on the saved development database.
 
 The Sites/Vinext toolchain is unchanged and still carries dependency advisories. It is not the supported PostgreSQL application runtime.

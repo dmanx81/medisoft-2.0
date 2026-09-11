@@ -284,7 +284,12 @@ function derivedStatus(
   current: string,
   tests: LabOrderTest[],
 ): string {
-  if (current === 'DRAFT' || current === 'CANCELLED') return current;
+  if (
+    current === 'DRAFT' ||
+    current === 'CANCELLED' ||
+    current === 'IN_PROCESS'
+  )
+    return current;
   const { test_count, covered_count, received_count } = coverageFrom(tests);
   if (test_count === 0 || covered_count === 0) return 'ORDERED';
   if (covered_count < test_count) return 'PARTIALLY_COLLECTED';
@@ -312,7 +317,7 @@ export async function getOrder(
 ): Promise<LabOrder> {
   permit(principal, 'orders:read');
   const row = (
-    await db.query<Omit<LabOrder, 'tests' | 'specimens' | 'test_count' | 'covered_count' | 'received_count'>>(
+    await db.query<Omit<LabOrder, 'tests' | 'specimens' | 'results' | 'test_count' | 'covered_count' | 'received_count'>>(
       `SELECT ${orderSelect} FROM lab_orders o
  JOIN patients p ON p.organization_id=o.organization_id AND p.id=o.patient_id
  LEFT JOIN users ob ON ob.organization_id=o.organization_id AND ob.id=o.ordered_by
@@ -324,7 +329,7 @@ export async function getOrder(
   if (!row) notFound();
   const tests = await loadTests(db, principal, row.id);
   const specimens = await loadSpecimens(db, principal, row.id);
-  return { ...row, tests, specimens, ...coverageFrom(tests) };
+  return { ...row, tests, specimens, results: [], ...coverageFrom(tests) };
 }
 export async function listOrders(
   db: QueryRunner,

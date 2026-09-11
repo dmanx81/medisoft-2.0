@@ -78,6 +78,7 @@ void test('order detail shows collection actions only when permitted', () => {
       },
     ],
     specimens: [],
+    results: [],
     test_count: 1,
     covered_count: 0,
     received_count: 0,

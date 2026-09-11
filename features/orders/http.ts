@@ -3,7 +3,10 @@ import { currentUser } from '@/lib/auth/session';
 import { can, type Permission, type Principal } from '@/lib/auth/permissions';
 import { validOrigin } from '@/lib/validation';
 import { environment } from '@/lib/env';
-import { OrderError } from './types';
+import type { QueryRunner } from '@/lib/db/query';
+import { listResultsForOrder } from '@/features/results/repository';
+import { OrderError, type LabOrder } from './types';
+import { ResultError } from '@/features/results/types';
 export async function orderApi(
   request: Request,
   permission: Permission,
@@ -30,7 +33,7 @@ export async function orderApi(
       );
     return reply(await handler(principal));
   } catch (error) {
-    if (error instanceof OrderError)
+    if (error instanceof OrderError || error instanceof ResultError)
       return reply(
         {
           code: error.code,
@@ -58,6 +61,14 @@ function reply(body: unknown, status = 200) {
       'X-Content-Type-Options': 'nosniff',
     },
   });
+}
+export async function attachResults(
+  db: QueryRunner,
+  principal: Principal,
+  order: LabOrder,
+) {
+  order.results = await listResultsForOrder(db, principal, order.id);
+  return order;
 }
 export async function readOrderBody(request: Request): Promise<unknown> {
   if (!request.headers.get('content-type')?.startsWith('application/json'))

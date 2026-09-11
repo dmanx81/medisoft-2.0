@@ -19,7 +19,7 @@ Ranges are a dedicated table. One test may have several current ranges (for exam
 
 Clinical content is immutable after insert: bounds, operators, text range, unit, method, sex, age, critical limits, `valid_from`, `range_version` and `supersedes_id` cannot be updated. The only legal mutation is retirement/replacement, which sets `is_active=false`, `valid_to`, `retired_at`, `retired_by` and optional `successor_id`. There is no delete API.
 
-Replacement inserts a new row (`range_version = previous + 1`, `supersedes_id = previous.id`) and then closes the previous row. Historical bounds therefore remain queryable by UUID. Future Phase 5 result records must still snapshot the applied range id, bounds, unit, method and interpretation flags at result time, because the parent test’s default unit/method/name can change. The stored range row is the audit-safe source for the bounds that were current at that moment.
+Replacement inserts a new row (`range_version = previous + 1`, `supersedes_id = previous.id`) and then closes the previous row. Historical bounds therefore remain queryable by UUID. Phase 5 result records snapshot the applied range id, bounds, unit, method and interpretation flags at result time, because the parent test’s default unit/method/name can change. The stored range row is the audit-safe source for the bounds that were current at that moment.
 
 Critical low/high are stored for later flagging. Phase 3 does not interpret results or raise alerts.
 
@@ -32,10 +32,10 @@ Mutations write append-only audit events (`LAB_TEST_CREATED`, `LAB_TEST_UPDATED`
 The existing Management → Tests route `/app/management/tests` lists, searches and filters tests. Create, edit, detail, activate/deactivate and range add/retire/replace are implemented. Hard deletion of tests or ranges is not exposed.
 
 ## Future snapshots
-Phase 4 orders copy test code, name, unit, method, specimen expectation and price onto ordered-test rows at order time. See [lab-orders-specimens.md](lab-orders-specimens.md). Phase 5 results should copy result type, measured value, unit, method, reference-range id and bounds, and a deterministic abnormal/critical flag. Changing the catalogue later must not rewrite those snapshots.
+Phase 4 orders copy test code, name, unit, method, specimen expectation and price onto ordered-test rows at order time. See [lab-orders-specimens.md](lab-orders-specimens.md). Phase 5 results copy result type, measured value, unit, method, reference-range id and bounds, and a deterministic abnormal/critical flag. Changing the catalogue later does not rewrite those snapshots.
 
 ## Auth hardening included with this migration
 Successful logins no longer increment the account throttle; failures do, and a successful login resets the counter. Updating `users.password_hash` deletes that user’s sessions.
 
 ## Boundaries
-No orders, specimens, barcodes, result entry, validation, reports, billing, microbiology, analyzer/HL7/FHIR adapters or clinical AI are included. Overlapping active ranges are not rejected; Phase 5 must define deterministic range selection. Contains-search may scan the current tenant’s catalogue; add trigram indexes if needed.
+No barcodes, reports, billing, microbiology, analyzer/HL7/FHIR adapters or clinical AI are included in the catalogue itself. Overlapping active ranges are not rejected at write time; Phase 5 defines deterministic range selection at result entry. Contains-search may scan the current tenant’s catalogue; add trigram indexes if needed.
