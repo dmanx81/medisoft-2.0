@@ -300,7 +300,14 @@ void test('authenticated order API enforces origin, tenant scope, transitions an
       (
         await detailRoute.PATCH(
           request('PATCH', {
-            data: payload.data,
+            data: {
+              patient_id: extras[1].patient,
+              priority: 'URGENT',
+              ordering_physician_name: '',
+              clinical_notes: '',
+              fasting_status: 'UNKNOWN',
+              external_reference: '',
+            },
             version: 1,
           }),
           context,
