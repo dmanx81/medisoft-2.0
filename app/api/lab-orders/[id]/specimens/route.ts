@@ -1,5 +1,5 @@
 import { database } from '@/lib/db';
-import { orderApi, readOrderBody } from '@/features/orders/http';
+import { attachResults, orderApi, readOrderBody } from '@/features/orders/http';
 import { createSpecimen } from '@/features/orders/repository';
 export const runtime = 'nodejs';
 type Context = { params: Promise<{ id: string }> };
@@ -9,7 +9,11 @@ export async function POST(request: Request, { params }: Context) {
     const body = await readOrderBody(request);
     const client = await database().connect();
     try {
-      return await createSpecimen(client, principal, id, body);
+      return await attachResults(
+        client,
+        principal,
+        await createSpecimen(client, principal, id, body),
+      );
     } finally {
       client.release();
     }

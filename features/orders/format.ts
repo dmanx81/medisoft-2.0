@@ -5,6 +5,7 @@ export const orderStatusLabels: Record<string, string> = {
   PARTIALLY_COLLECTED: 'Partially collected',
   COLLECTED: 'Collected',
   RECEIVED: 'Received',
+  IN_PROCESS: 'In process',
   CANCELLED: 'Cancelled',
 };
 export const priorityLabels: Record<string, string> = {
@@ -35,6 +36,7 @@ export const orderActivityLabels: Record<string, string> = {
   SPECIMEN_RECEIVED: 'Specimen received',
   SPECIMEN_REJECTED: 'Specimen rejected',
   SPECIMEN_TEST_LINKED: 'Specimen linked to tests',
+  LAB_ORDER_IN_PROCESS: 'Result processing started',
 };
 export function stampLabel(value: string) {
   if (!value) return '—';

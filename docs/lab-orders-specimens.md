@@ -48,9 +48,8 @@ Stored status is updated only by server actions. Collection/receipt progress is 
 - `PARTIALLY_COLLECTED` — some, but not all, active tests have a COLLECTED or RECEIVED specimen
 - `COLLECTED` — every active test is covered, but not every covering specimen is RECEIVED
 - `RECEIVED` — every active test is covered by a RECEIVED specimen
+- `IN_PROCESS` — result entry has started (Phase 5)
 - `CANCELLED` — terminal; history retained
-
-`IN_PROCESS` is omitted until Phase 5 result processing.
 
 Legal transitions:
 
@@ -89,7 +88,7 @@ Named grants extend the existing map:
 | RECEPTIONIST | read, create, edit drafts, place | none |
 | LAB_TECHNICIAN | read (plus `patients:read` for laboratory work) | collect, receive, reject |
 | BIOCHEMIST | read (plus `patients:read`) | collect, receive, reject |
-| DOCTOR | none | none |
+| DOCTOR | read (Phase 5) | none |
 | VIEWER | none | none |
 
 Catalogue administration is unchanged. Hidden buttons are not security; repository/API checks remain authoritative. Cross-tenant UUIDs return the same 404 as missing records (`ORDER_NOT_FOUND`, `PATIENT_NOT_FOUND`, `SPECIMEN_NOT_FOUND`).
@@ -120,8 +119,4 @@ Organization, actors, order numbers and accession numbers cannot be mass-assigne
 
 ## Known limitations
 
-No result entry, reference-range selection, flags, validation, reports, PDFs, billing, analyzers, HL7/FHIR, barcode hardware, label printers, panels, configurable specimen catalogues, aliquots, microbiology/pathology workflows or AI. Overlapping collection of the same test is blocked while a collected/received specimen already covers it; a rejected specimen can be replaced. STAT priority is not implemented. Doctors do not receive order access in this phase.
-
-## Phase 5 handoff
-
-Result rows should attach to `lab_order_tests` (not to specimens alone), snapshot the ordered-test unit/method/result type **and** the selected reference range (id, bounds, unit, method) at result time, then apply deterministic abnormal/critical flags. Technical validation and clinical verification are audited state transitions after `RECEIVED`. Do not overwrite finalized values; use amendments. `IN_PROCESS` can be introduced when result entry starts.
+No PDF reports, billing, analyzers, HL7/FHIR, barcode hardware, label printers, panels, configurable specimen catalogues, aliquots, microbiology/pathology workflows or AI. Overlapping collection of the same test is blocked while a collected/received specimen already covers it; a rejected specimen can be replaced. STAT priority is not implemented. Doctors can read orders and results in Phase 5. See [lab-results.md](lab-results.md).

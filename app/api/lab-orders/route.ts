@@ -1,5 +1,5 @@
 import { database } from '@/lib/db';
-import { orderApi, readOrderBody } from '@/features/orders/http';
+import { attachResults, orderApi, readOrderBody } from '@/features/orders/http';
 import { createOrder } from '@/features/orders/repository';
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
@@ -7,7 +7,11 @@ export async function POST(request: Request) {
     const body = await readOrderBody(request);
     const client = await database().connect();
     try {
-      return await createOrder(client, principal, body);
+      return await attachResults(
+        client,
+        principal,
+        await createOrder(client, principal, body),
+      );
     } finally {
       client.release();
     }

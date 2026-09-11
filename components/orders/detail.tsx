@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import type { LabOrder, LabOrderActivity } from '@/features/orders/types';
+import { ResultPanel } from '@/components/results/panel';
 import {
   coverageLabel,
   fastingLabels,
@@ -13,8 +14,15 @@ import {
   specimenStatusLabels,
   stampLabel,
 } from '@/features/orders/format';
+import { resultActivityLabels } from '@/features/results/format';
 import { specimenLabels } from '@/features/catalogue/format';
 type Failure = { code?: string; message?: string; fields?: Record<string, string> };
+function currentResultId(order: LabOrder, testId: string) {
+  return (
+    order.results?.find((row) => row.order_test_id === testId && row.is_current)
+      ?.id ?? 'none'
+  );
+}
 export function OrderDetail({
   initial,
   activity: initialActivity,
@@ -24,6 +32,11 @@ export function OrderDetail({
   canCollect,
   canReceive,
   canReject,
+  canReadResults = false,
+  canEnterResults = false,
+  canValidateResults = false,
+  canVerifyResults = false,
+  canAmendResults = false,
 }: {
   initial: LabOrder;
   activity: LabOrderActivity[];
@@ -33,6 +46,11 @@ export function OrderDetail({
   canCollect: boolean;
   canReceive: boolean;
   canReject: boolean;
+  canReadResults?: boolean;
+  canEnterResults?: boolean;
+  canValidateResults?: boolean;
+  canVerifyResults?: boolean;
+  canAmendResults?: boolean;
 }) {
   const [order, setOrder] = useState(initial);
   const [activity, setActivity] = useState(initialActivity);
@@ -176,41 +194,71 @@ export function OrderDetail({
         <h2 className="mb-4 font-semibold">Ordered tests</h2>
         <ul className="divide-y divide-line">
           {order.tests.map((test) => (
-            <li key={test.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
-              <div>
-                <span className="font-mono">{test.code_snapshot}</span> {test.name_snapshot}
-                <div className="text-xs text-slate">
-                  {specimenLabels[test.specimen_type_snapshot]} · {test.result_type_snapshot}
-                  {test.unit_symbol_snapshot ? ` · ${test.unit_symbol_snapshot}` : ''}
-                  {test.method_snapshot ? ` · ${test.method_snapshot}` : ''}
-                  {test.base_price_snapshot ? ` · ${test.base_price_snapshot}` : ''}
+            <li key={test.id} className="py-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="font-mono">{test.code_snapshot}</span>{' '}
+                  {test.name_snapshot}
+                  <div className="text-xs text-slate">
+                    {specimenLabels[test.specimen_type_snapshot]} · {test.result_type_snapshot}
+                    {test.unit_symbol_snapshot ? ` · ${test.unit_symbol_snapshot}` : ''}
+                    {test.method_snapshot ? ` · ${test.method_snapshot}` : ''}
+                    {test.base_price_snapshot ? ` · ${test.base_price_snapshot}` : ''}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span>
+                    {test.covering_status
+                      ? specimenStatusLabels[test.covering_status]
+                      : test.status === 'CANCELLED'
+                        ? 'Cancelled'
+                        : 'Uncollected'}
+                  </span>
+                  {canEdit && order.status === 'DRAFT' && (
+                    <button
+                      type="button"
+                      className="text-coral"
+                      disabled={busy}
+                      onClick={() =>
+                        void send(
+                          `/api/lab-orders/${order.id}/tests/${test.id}`,
+                          'DELETE',
+                          { version: order.version },
+                        )
+                      }
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span>
-                  {test.covering_status
-                    ? specimenStatusLabels[test.covering_status]
-                    : test.status === 'CANCELLED'
-                      ? 'Cancelled'
-                      : 'Uncollected'}
-                </span>
-                {canEdit && order.status === 'DRAFT' && (
-                  <button
-                    type="button"
-                    className="text-coral"
-                    disabled={busy}
-                    onClick={() =>
-                      void send(
-                        `/api/lab-orders/${order.id}/tests/${test.id}`,
-                        'DELETE',
-                        { version: order.version },
-                      )
-                    }
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
+              {(canReadResults ||
+                canEnterResults ||
+                test.covering_status === 'RECEIVED') && (
+                <ResultPanel
+                  key={`${test.id}-${currentResultId(order, test.id)}`}
+                  order={order}
+                  test={test}
+                  results={order.results ?? []}
+                  canRead={canReadResults}
+                  canEnter={canEnterResults}
+                  canValidate={canValidateResults}
+                  canVerify={canVerifyResults}
+                  canAmend={canAmendResults}
+                  busy={busy}
+                  onSave={(next) => {
+                    setOrder(next);
+                    void fetch(`/api/lab-orders/${next.id}/activity`).then(
+                      async (events) => {
+                        if (events.ok)
+                          setActivity((await events.json()) as LabOrderActivity[]);
+                      },
+                    );
+                  }}
+                  onFailure={setFailure}
+                  onBusy={setBusy}
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -435,7 +483,9 @@ export function OrderDetail({
           {activity.map((event) => (
             <li key={event.id}>
               <span className="font-medium">
-                {orderActivityLabels[event.action] || event.action}
+                {orderActivityLabels[event.action] ||
+                  resultActivityLabels[event.action] ||
+                  event.action}
               </span>
               <span className="text-slate">
                 {' '}

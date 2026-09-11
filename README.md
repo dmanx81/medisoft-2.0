@@ -33,7 +33,7 @@ npm run test:api
 npm run build:node
 ```
 
-Tests use disposable PGlite databases (actual PostgreSQL engine, no external database needed). They cover role grants, validation, origin/session rejection, password hashing, organization isolation, composite foreign keys, session expiry/disabled users, audit immutability, Patient CRM, the laboratory catalogue, laboratory orders/specimens and rendered dashboard structure. HTTP route-protection smoke checks should run against `npm run dev:node` or `npm run start:node`: anonymous `/app` and nested application URLs redirect to `/login`; public `/en`, `/sq` and both demos remain accessible.
+Tests use disposable PGlite databases (actual PostgreSQL engine, no external database needed). They cover role grants, validation, origin/session rejection, password hashing, organization isolation, composite foreign keys, session expiry/disabled users, audit immutability, Patient CRM, the laboratory catalogue, laboratory orders/specimens, laboratory results and rendered dashboard structure. HTTP route-protection smoke checks should run against `npm run dev:node` or `npm run start:node`: anonymous `/app` and nested application URLs redirect to `/login`; public `/en`, `/sq` and both demos remain accessible.
 
 ## Deployment
 
@@ -56,13 +56,15 @@ Authentication uses database sessions with 8-hour expiry, HttpOnly cookies, prod
 
 ## Scope
 
-Organization/user/role schema, login/logout, protected shell, dashboard, module empty states, audit foundation and provider-neutral AI contracts are implemented. AI defaults off and no model calls exist. Patient CRM is implemented in Phase 2. The laboratory test catalogue and versioned reference ranges are implemented in Phase 3. Laboratory orders and specimen collection are implemented in Phase 4. Result validation, billing and user management remain future work.
+Organization/user/role schema, login/logout, protected shell, dashboard, module empty states, audit foundation and provider-neutral AI contracts are implemented. AI defaults off and no model calls exist. Patient CRM is implemented in Phase 2. The laboratory test catalogue and versioned reference ranges are implemented in Phase 3. Laboratory orders and specimen collection are implemented in Phase 4. Laboratory results, technical validation, clinical verification and amendments are implemented in Phase 5. Reports, billing and user management remain future work.
 
 **Phase 2:** organization-scoped Patient CRM is implemented. See [Patient CRM](docs/patient-crm.md) for schema, permissions, duplicate handling, audit behavior and limitations.
 
 **Phase 3:** organization-scoped laboratory catalogue is implemented. See [Laboratory catalogue](docs/lab-catalogue.md) for schema, versioning, permissions, audit behavior and limitations.
 
-**Phase 4:** laboratory orders, ordered-test snapshots and specimen collection/accessioning are implemented. See [Laboratory orders and specimens](docs/lab-orders-specimens.md). Result entry, validation, reports, billing and analyzers remain future work.
+**Phase 4:** laboratory orders, ordered-test snapshots and specimen collection/accessioning are implemented. See [Laboratory orders and specimens](docs/lab-orders-specimens.md).
+
+**Phase 5:** laboratory results, technical validation, clinical verification and amendments are implemented. See [Laboratory results](docs/lab-results.md). Reports, billing and analyzers remain future work.
 
 Run HTTP boundary checks against a running server with `SMOKE_ORIGIN=http://localhost:3000 npm run test:http` (APP_ORIGIN must match). These verify every module redirect, public bilingual routes, origin checks, oversized form rejection and invalid credentials.
 
@@ -86,7 +88,7 @@ npm run lint
 
 Run build and typecheck sequentially because the build regenerates route types. API integration tests execute real handlers and PostgreSQL SQL using PGlite; only the framework session/pool boundary is mocked using Node's experimental module-mock facility (Node 22.13+). Live HTTP tests independently verify session rejection and preservation of public routes. Docker/PostgreSQL network verification remains separate.
 
-Grant the runtime role SELECT/INSERT/UPDATE on patients, patient_counters, lab_test_categories, lab_units, lab_tests, lab_reference_ranges, lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests and the yearly counters, retaining existing organization/user/audit privileges. Grant DELETE only on `lab_order_tests` for draft removal. Do not grant DELETE/TRUNCATE on clinical tables or audit UPDATE/DELETE/TRUNCATE. Include those tables in encrypted backups and restore exercises.
+Grant the runtime role SELECT/INSERT/UPDATE on patients, patient_counters, lab_test_categories, lab_units, lab_tests, lab_reference_ranges, lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests, lab_results and the yearly counters, retaining existing organization/user/audit privileges. Grant DELETE only on `lab_order_tests` for draft removal. Do not grant DELETE/TRUNCATE on clinical tables or audit UPDATE/DELETE/TRUNCATE. Include those tables in encrypted backups and restore exercises.
 
 ## Laboratory catalogue development
 
@@ -112,6 +114,20 @@ Apply migration 004 using the existing migration command, then rerun the develop
 node --env-file=.env.local --import tsx scripts/migrate.ts
 node --env-file=.env.local --import tsx scripts/seed.ts --dry-run
 node --env-file=.env.local --import tsx scripts/seed.ts
+npm test
+npm run test:api
+SMOKE_ORIGIN=http://localhost:3000 npm run test:http
+npm run build
+npm run typecheck
+npm run lint
+```
+
+## Laboratory results
+
+Apply migration 005 using the existing migration command. Migrations 001–004 have not changed. Sign in and open a received order or `/app/laboratory/results`. Laboratory technicians enter and technically validate results. Biochemists also clinically verify and amend. Doctors can read orders and results. Receptionists do not see result values. Status changes use explicit action endpoints.
+
+```sh
+node --env-file=.env.local --import tsx scripts/migrate.ts
 npm test
 npm run test:api
 SMOKE_ORIGIN=http://localhost:3000 npm run test:http

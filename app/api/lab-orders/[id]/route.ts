@@ -1,5 +1,5 @@
 import { database } from '@/lib/db';
-import { orderApi, readOrderBody } from '@/features/orders/http';
+import { attachResults, orderApi, readOrderBody } from '@/features/orders/http';
 import { getOrder, updateOrder } from '@/features/orders/repository';
 export const runtime = 'nodejs';
 type Context = { params: Promise<{ id: string }> };
@@ -14,7 +14,11 @@ export function DELETE() {
 }
 export async function GET(request: Request, { params }: Context) {
   return orderApi(request, 'orders:read', async (principal) =>
-    getOrder(database(), principal, (await params).id),
+    attachResults(
+      database(),
+      principal,
+      await getOrder(database(), principal, (await params).id),
+    ),
   );
 }
 export async function PATCH(request: Request, { params }: Context) {
@@ -23,7 +27,11 @@ export async function PATCH(request: Request, { params }: Context) {
     const body = await readOrderBody(request);
     const client = await database().connect();
     try {
-      return await updateOrder(client, principal, id, body);
+      return await attachResults(
+        client,
+        principal,
+        await updateOrder(client, principal, id, body),
+      );
     } finally {
       client.release();
     }

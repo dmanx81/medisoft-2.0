@@ -7,10 +7,15 @@ import {
   listOrderActivity,
   listOrders,
 } from '@/features/orders/repository';
+import { attachResults } from '@/features/orders/http';
 import { OrderError } from '@/features/orders/types';
 export async function orderForPage(principal: Principal, id: string) {
   try {
-    const order = await getOrder(database(), principal, id);
+    const order = await attachResults(
+      database(),
+      principal,
+      await getOrder(database(), principal, id),
+    );
     const activity = await listOrderActivity(database(), principal, id);
     return { order, activity };
   } catch (error) {
