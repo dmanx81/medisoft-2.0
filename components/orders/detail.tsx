@@ -15,6 +15,8 @@ import {
   stampLabel,
 } from '@/features/orders/format';
 import { resultActivityLabels } from '@/features/results/format';
+import { reportActivityLabels } from '@/features/reports/format';
+import { ReportPanel } from '@/components/reports/panel';
 import { specimenLabels } from '@/features/catalogue/format';
 type Failure = { code?: string; message?: string; fields?: Record<string, string> };
 function currentResultId(order: LabOrder, testId: string) {
@@ -37,6 +39,10 @@ export function OrderDetail({
   canValidateResults = false,
   canVerifyResults = false,
   canAmendResults = false,
+  canReadReports = false,
+  canGenerateReports = false,
+  canDownloadReports = false,
+  canDeliverReports = false,
 }: {
   initial: LabOrder;
   activity: LabOrderActivity[];
@@ -51,6 +57,10 @@ export function OrderDetail({
   canValidateResults?: boolean;
   canVerifyResults?: boolean;
   canAmendResults?: boolean;
+  canReadReports?: boolean;
+  canGenerateReports?: boolean;
+  canDownloadReports?: boolean;
+  canDeliverReports?: boolean;
 }) {
   const [order, setOrder] = useState(initial);
   const [activity, setActivity] = useState(initialActivity);
@@ -115,7 +125,11 @@ export function OrderDetail({
             <h1 className="font-mono text-2xl font-semibold">
               {order.order_number}
             </h1>
-            <span className="rounded border border-line bg-white px-2 py-1 text-xs">
+            <span
+              className={`rounded border border-line bg-white px-2 py-1 text-xs ${
+                order.status === 'COMPLETED' ? 'border-teal/30 bg-mint text-teal' : ''
+              }`}
+            >
               {orderStatusLabels[order.status]}
             </span>
             <span
@@ -247,7 +261,13 @@ export function OrderDetail({
                   canAmend={canAmendResults}
                   busy={busy}
                   onSave={(next) => {
-                    setOrder(next);
+                    setOrder((current) => ({
+                      ...next,
+                      reports:
+                        next.reports && next.reports.length > 0
+                          ? next.reports
+                          : current.reports ?? [],
+                    }));
                     void fetch(`/api/lab-orders/${next.id}/activity`).then(
                       async (events) => {
                         if (events.ok)
@@ -431,6 +451,24 @@ export function OrderDetail({
             </form>
           )}
       </section>
+      <ReportPanel
+        order={order}
+        canRead={canReadReports}
+        canGenerate={canGenerateReports}
+        canDownload={canDownloadReports}
+        canDeliver={canDeliverReports}
+        busy={busy}
+        onSave={(next) => {
+          setOrder(next);
+          void fetch(`/api/lab-orders/${next.id}/activity`).then(
+            async (events) => {
+              if (events.ok)
+                setActivity((await events.json()) as LabOrderActivity[]);
+            },
+          );
+        }}
+        onFailure={setFailure}
+      />
       {(canPlace && order.status === 'DRAFT') ||
       (canCancel && (order.status === 'DRAFT' || order.status === 'ORDERED')) ? (
         <section className="flex flex-wrap items-end gap-3 rounded-md border border-line bg-white p-5">
@@ -485,6 +523,7 @@ export function OrderDetail({
               <span className="font-medium">
                 {orderActivityLabels[event.action] ||
                   resultActivityLabels[event.action] ||
+                  reportActivityLabels[event.action] ||
                   event.action}
               </span>
               <span className="text-slate">

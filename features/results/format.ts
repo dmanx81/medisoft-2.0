@@ -19,6 +19,8 @@ export const resultActivityLabels: Record<string, string> = {
   RESULT_CLINICALLY_VERIFIED: 'Clinically verified',
   RESULT_AMENDED: 'Result amended',
   LAB_ORDER_IN_PROCESS: 'Result processing started',
+  LAB_ORDER_COMPLETED: 'Order completed',
+  LAB_ORDER_REOPENED: 'Order reopened',
 };
 export function displayResultValue(result: {
   result_type_snapshot: string;

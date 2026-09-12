@@ -10,10 +10,20 @@ import {
   createTest,
   createUnit,
 } from '../../features/catalogue/repository';
-import { createOrder, createSpecimen, placeOrder, receiveSpecimen } from '../../features/orders/repository';
+import {
+  createOrder,
+  createSpecimen,
+  placeOrder,
+  receiveSpecimen,
+} from '../../features/orders/repository';
+import {
+  enterResult,
+  validateResult,
+  verifyResult,
+} from '../../features/results/repository';
 import type { Principal } from '../../lib/auth/permissions';
 import type { LabOrder } from '../../features/orders/types';
-import type { ResultContext } from '../../features/results/types';
+import type { LabReport } from '../../features/reports/types';
 const db = new PGlite();
 let principal: Principal | null = null;
 mock.module('server-only', { defaultExport: {} });
@@ -33,29 +43,26 @@ mock.module('../../lib/db/index.ts', {
     }),
   },
 });
-const enterRoute =
-  await import('../../app/api/lab-orders/[id]/tests/[testId]/results/route');
 const contextRoute =
-  await import('../../app/api/lab-orders/[id]/tests/[testId]/result-context/route');
-const validateRoute = await import('../../app/api/lab-results/[id]/validate/route');
-const verifyRoute = await import('../../app/api/lab-results/[id]/verify/route');
-const amendRoute = await import('../../app/api/lab-results/[id]/amend/route');
-const historyRoute = await import('../../app/api/lab-results/[id]/history/route');
-const searchRoute = await import('../../app/api/lab-results/search/route');
-const deleteRoute = await import('../../app/api/lab-results/[id]/route');
-const orderRoute = await import('../../app/api/lab-orders/[id]/route');
+  await import('../../app/api/lab-orders/[id]/report-context/route');
+const orderReportsRoute =
+  await import('../../app/api/lab-orders/[id]/reports/route');
+const reportRoute = await import('../../app/api/lab-reports/[id]/route');
+const pdfRoute = await import('../../app/api/lab-reports/[id]/pdf/route');
+const deliverRoute = await import('../../app/api/lab-reports/[id]/deliver/route');
+const searchRoute = await import('../../app/api/lab-reports/search/route');
 function request(
   method: string,
   body?: unknown,
   origin = 'https://clinic.example',
 ) {
-  return new Request('https://clinic.example/api/lab-results', {
+  return new Request('https://clinic.example/api/lab-reports', {
     method,
     headers: { origin, 'content-type': 'application/json' },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 }
-void test('result API enforces origin, tenant scope, workflow and permissions', async () => {
+void test('report API enforces origin, tenant scope, completeness and permissions', async () => {
   try {
     for (const migration of [
       '001_foundation.sql',
@@ -73,7 +80,7 @@ void test('result API enforces origin, tenant scope, workflow and permissions', 
       );
     const users: Principal[] = [];
     const extras: { patient: string; glu: string }[] = [];
-    for (const slug of ['res-a', 'res-b']) {
+    for (const slug of ['rep-a', 'rep-b']) {
       const org = (
         await db.query<{ id: string }>(
           "INSERT INTO organizations(name,slug,type,country) VALUES($1,$1,'CLINIC','AL') RETURNING id",
@@ -126,7 +133,7 @@ void test('result API enforces origin, tenant scope, workflow and permissions', 
           result_type: 'NUMERIC',
           unit_id: unit.id,
           method: 'Hexokinase',
-          display_order: 1,
+          display_order: 10,
           base_price: '8.00',
           is_active: true,
         },
@@ -178,128 +185,121 @@ void test('result API enforces origin, tenant scope, workflow and permissions', 
       collected.specimens[0].id,
       { version: collected.specimens[0].version },
     );
-    const testContext = {
-      params: Promise.resolve({
-        id: received.id,
-        testId: received.tests[0].id,
-      }),
-    };
+    const orderContext = { params: Promise.resolve({ id: received.id }) };
     assert.equal(
       (
-        await enterRoute.POST(
-          request('POST', { numeric_value: '85', version: received.version }, 'https://evil.example'),
-          testContext,
+        await orderReportsRoute.POST(
+          request('POST', {}, 'https://evil.example'),
+          orderContext,
         )
       ).status,
       403,
     );
-    const entered = await enterRoute.POST(
-      request('POST', { numeric_value: '85', version: received.version }),
-      testContext,
+    const incomplete = await orderReportsRoute.POST(
+      request('POST', {}),
+      orderContext,
     );
-    assert.equal(entered.status, 200);
-    const order = (await entered.json()) as LabOrder;
-    assert.equal(order.status, 'IN_PROCESS');
-    const result = order.results.find((row) => row.is_current)!;
-    assert.equal(result.flag, 'NORMAL');
-    const context = await contextRoute.GET(request('GET'), testContext);
-    assert.equal(context.status, 200);
-    assert.equal(((await context.json()) as ResultContext).current?.id, result.id);
-    principal = users[1];
-    assert.equal((await enterRoute.POST(
-      request('POST', { numeric_value: '90', version: 1 }),
-      testContext,
-    )).status, 404);
-    assert.equal(
-      (
-        await validateRoute.POST(
-          request('POST', { version: result.version }),
-          { params: Promise.resolve({ id: result.id }) },
-        )
-      ).status,
-      404,
-    );
-    const search = await searchRoute.POST(
-      request('POST', { query: order.order_number }),
-    );
-    assert.equal(((await search.json()) as { total: number }).total, 0);
-    principal = { ...users[0], role: 'RECEPTIONIST' };
-    const shown = await orderRoute.GET(request('GET'), {
-      params: Promise.resolve({ id: received.id }),
+    assert.equal(incomplete.status, 409);
+    assert.equal(((await incomplete.json()) as { code: string }).code, 'ORDER_NOT_COMPLETE');
+    const entered = await enterResult(db, users[0], received.id, received.tests[0].id, {
+      numeric_value: '85',
+      version: received.version,
     });
-    assert.equal(shown.status, 200);
-    assert.equal(((await shown.json()) as LabOrder).results.length, 0);
-    assert.equal(
-      (
-        await enterRoute.POST(
-          request('POST', { numeric_value: '90', version: order.version }),
-          testContext,
-        )
-      ).status,
-      403,
+    const current = entered.results.find((row) => row.is_current)!;
+    const validated = await validateResult(db, users[0], current.id, {
+      version: Number(current.version),
+    });
+    const ready = validated.results.find((row) => row.is_current)!;
+    const verified = await verifyResult(db, users[0], ready.id, {
+      version: Number(ready.version),
+    });
+    assert.equal(verified.status, 'COMPLETED');
+    const generated = await orderReportsRoute.POST(
+      request('POST', {}),
+      { params: Promise.resolve({ id: verified.id }) },
     );
-    principal = { ...users[0], role: 'LAB_TECHNICIAN' };
-    const validated = await validateRoute.POST(
-      request('POST', { version: result.version }),
-      { params: Promise.resolve({ id: result.id }) },
-    );
-    assert.equal(validated.status, 200);
-    const validatedOrder = (await validated.json()) as LabOrder;
-    const validatedResult = validatedOrder.results.find((row) => row.is_current)!;
-    assert.equal(
-      (
-        await verifyRoute.POST(
-          request('POST', { version: validatedResult.version }),
-          { params: Promise.resolve({ id: validatedResult.id }) },
-        )
-      ).status,
-      403,
-    );
-    principal = { ...users[0], role: 'BIOCHEMIST' };
-    const verified = await verifyRoute.POST(
-      request('POST', { version: validatedResult.version }),
-      { params: Promise.resolve({ id: validatedResult.id }) },
-    );
-    assert.equal(verified.status, 200);
-    const verifiedOrder = (await verified.json()) as LabOrder;
-    const verifiedResult = verifiedOrder.results.find((row) => row.is_current)!;
+    assert.equal(generated.status, 200);
+    const order = (await generated.json()) as LabOrder;
+    const report = order.reports.find((row) => row.is_current)!;
+    assert.equal(report.report_version, 1);
     principal = { ...users[0], role: 'DOCTOR' };
     assert.equal(
       (
-        await amendRoute.POST(
-          request('POST', {
-            numeric_value: '88',
-            reason: 'correction',
-            version: verifiedResult.version,
-          }),
-          { params: Promise.resolve({ id: verifiedResult.id }) },
+        await orderReportsRoute.POST(
+          request('POST', {}),
+          { params: Promise.resolve({ id: verified.id }) },
+        )
+      ).status,
+      403,
+    );
+    const doctorPdf = await pdfRoute.GET(request('GET'), {
+      params: Promise.resolve({ id: report.id }),
+    });
+    assert.equal(doctorPdf.status, 200);
+    assert.equal(doctorPdf.headers.get('content-type'), 'application/pdf');
+    principal = users[1];
+    assert.equal(
+      (
+        await reportRoute.GET(request('GET'), {
+          params: Promise.resolve({ id: report.id }),
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await pdfRoute.GET(request('GET'), {
+          params: Promise.resolve({ id: report.id }),
+        })
+      ).status,
+      404,
+    );
+    principal = { ...users[0], role: 'LAB_TECHNICIAN' };
+    assert.equal(
+      (
+        await pdfRoute.GET(request('GET'), {
+          params: Promise.resolve({ id: report.id }),
+        })
+      ).status,
+      403,
+    );
+    principal = users[0];
+    const listed = await orderReportsRoute.GET(request('GET'), {
+      params: Promise.resolve({ id: verified.id }),
+    });
+    assert.equal(((await listed.json()) as LabReport[]).length, 1);
+    const context = await contextRoute.GET(request('GET'), {
+      params: Promise.resolve({ id: verified.id }),
+    });
+    assert.equal(((await context.json()) as { eligible: boolean }).eligible, false);
+    const delivered = await deliverRoute.POST(
+      request('POST', { method: 'MANUAL', recipient_descriptor: 'Clinic desk' }),
+      { params: Promise.resolve({ id: report.id }) },
+    );
+    assert.equal(delivered.status, 200);
+    principal = { ...users[0], role: 'DOCTOR' };
+    assert.equal(
+      (
+        await deliverRoute.POST(
+          request('POST', { method: 'PRINT' }),
+          { params: Promise.resolve({ id: report.id }) },
         )
       ).status,
       403,
     );
     principal = users[0];
-    const amended = await amendRoute.POST(
-      request('POST', {
-        numeric_value: '88',
-        reason: 'correction',
-        version: verifiedResult.version,
-      }),
-      { params: Promise.resolve({ id: verifiedResult.id }) },
+    const search = await searchRoute.POST(
+      request('POST', { query: order.order_number }),
     );
-    assert.equal(amended.status, 200);
-    const history = await historyRoute.GET(request('GET'), {
-      params: Promise.resolve({ id: verifiedResult.id }),
-    });
-    assert.equal(history.status, 200);
-    assert.equal(((await history.json()) as { id: string }[]).length, 2);
-    assert.equal(deleteRoute.DELETE().status, 405);
+    assert.equal(((await search.json()) as { total: number }).total, 1);
+    assert.equal(orderReportsRoute.DELETE().status, 405);
+    assert.equal(reportRoute.DELETE().status, 405);
     principal = null;
     assert.equal(
       (
-        await enterRoute.POST(
-          request('POST', { numeric_value: '90', version: 1 }),
-          testContext,
-        )
+        await pdfRoute.GET(request('GET'), {
+          params: Promise.resolve({ id: report.id }),
+        })
       ).status,
       401,
     );

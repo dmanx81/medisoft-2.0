@@ -1,4 +1,5 @@
 import type { LabResult } from '@/features/results/types';
+import type { LabReport } from '@/features/reports/types';
 import type { OrderInput } from './validation';
 export type LabOrderSummary = {
   id: string;
@@ -91,6 +92,7 @@ export type LabOrder = OrderInput & {
   tests: LabOrderTest[];
   specimens: LabSpecimen[];
   results: LabResult[];
+  reports: LabReport[];
   test_count: number;
   covered_count: number;
   received_count: number;
