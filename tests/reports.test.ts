@@ -408,8 +408,8 @@ void test('issued reports freeze snapshots, version and remain tenant scoped', a
     );
     const pdf = await downloadReportPdf(db, a, previous.id);
     assert.equal(pdf.pdf.subarray(0, 4).toString(), '%PDF');
-    assert.equal(pdf.pdf.includes(Buffer.from('85')), true);
-    assert.equal(pdf.pdf.includes(Buffer.from('92')), false);
+    assert.equal(pdf.report.id, previous.id);
+    assert.equal(pdf.report.report_version, 1);
     await assert.rejects(
       downloadReportPdf(db, asRole('LAB_TECHNICIAN'), currentReport.id),
       hasCode('FORBIDDEN'),

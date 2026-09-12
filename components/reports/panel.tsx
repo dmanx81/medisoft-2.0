@@ -221,9 +221,10 @@ function ReportHistoryRow({
             onRecipient('');
           }}
         >
-          <label className="text-xs font-medium">
+          <label className="text-xs font-medium" htmlFor={`delivery-method-${report.id}`}>
             Delivery method
             <NativeSelect
+              id={`delivery-method-${report.id}`}
               className="mt-1 h-9 w-full rounded-md border border-line bg-white px-2"
               value={method}
               onChange={(event) => onMethod(event.target.value)}
@@ -233,9 +234,10 @@ function ReportHistoryRow({
               <option value="DOWNLOAD">Download</option>
             </NativeSelect>
           </label>
-          <label className="text-xs font-medium">
+          <label className="text-xs font-medium" htmlFor={`delivery-recipient-${report.id}`}>
             Recipient descriptor
             <Input
+              id={`delivery-recipient-${report.id}`}
               className="mt-1"
               value={recipient}
               onChange={(event) => onRecipient(event.target.value)}
