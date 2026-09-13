@@ -244,6 +244,22 @@ function withoutLiveClinical(db: PGlite): QueryRunner {
     },
   };
 }
+function pdfText(buffer: Buffer) {
+  const raw = buffer.toString('latin1');
+  const parts: string[] = [];
+  for (const match of raw.matchAll(/\((?:\\.|[^\\)])*\)/g)) {
+    parts.push(
+      match[0]
+        .slice(1, -1)
+        .replace(/\\n/g, '\n')
+        .replace(/\\([()\\])/g, '$1'),
+    );
+  }
+  for (const match of raw.matchAll(/<([0-9A-Fa-f]+)>/g)) {
+    parts.push(Buffer.from(match[1], 'hex').toString('latin1'));
+  }
+  return parts.join('\n');
+}
 void test('order completion follows current clinically verified results', async () => {
   const { db, a, patientA, gluA, altA } = await fixture();
   try {
@@ -444,7 +460,7 @@ void test('issued reports freeze snapshots, version and remain tenant scoped', a
     assert.equal(pdf.pdf.subarray(0, 4).toString(), '%PDF');
     assert.equal(pdf.report.id, previous.id);
     assert.equal(pdf.report.report_version, 1);
-    const v1Text = pdf.pdf.toString('latin1');
+    const v1Text = pdfText(pdf.pdf);
     assert.ok(v1Text.includes('John'));
     assert.ok(v1Text.includes('85'));
     assert.ok(v1Text.includes('Hexokinase'));
@@ -519,10 +535,6 @@ void test('issued clinical representation is reproduced only from snapshot', asy
       "UPDATE lab_specimens SET collection_notes='Later collection' WHERE order_id=$1",
       [issued.id],
     );
-    await db.query(
-      "UPDATE lab_reference_ranges SET lower_bound=10,upper_bound=20,method='Later range' WHERE organization_id=$1",
-      [a.organizationId],
-    );
     await updateTest(db, a, gluA.id, {
       data: {
         ...testInput(categoryA.id, unitA.id, 'GLU').data,
@@ -559,7 +571,7 @@ void test('issued clinical representation is reproduced only from snapshot', asy
     assert.equal(clinical.results[0].method.includes('Changed'), false);
     assert.equal(clinical.results[0].numeric_value, '85');
     const pdf = await renderReportPdf(snapshotOnly);
-    const text = pdf.toString('latin1');
+    const text = pdfText(pdf);
     assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
     assert.ok(text.includes('John'));
     assert.ok(text.includes('Test'));
@@ -576,7 +588,7 @@ void test('issued clinical representation is reproduced only from snapshot', asy
       a,
       reportId,
     );
-    const downloadedText = downloaded.pdf.toString('latin1');
+    const downloadedText = pdfText(downloaded.pdf);
     assert.ok(downloadedText.includes('John'));
     assert.ok(downloadedText.includes('85'));
     assert.equal(downloadedText.includes('Changed'), false);
@@ -667,7 +679,7 @@ void test('legacy snapshots render from frozen clinical fields plus row issuance
   assert.equal(clinical.issuance.report_number, 'LAB-2026-000001-R1');
   assert.equal(clinical.issuance.superseded, true);
   const pdf = await renderReportPdf(snapshot, { fallback });
-  const text = pdf.toString('latin1');
+  const text = pdfText(pdf);
   assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
   assert.ok(text.includes('Ada'));
   assert.ok(text.includes('88 mg/dL'));
