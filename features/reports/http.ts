@@ -110,12 +110,96 @@ export async function reportPdfApi(
 function reply(body: unknown, status = 200) {
   return Response.json(body, {
     status,
-    headers: {
-      'Cache-Control': 'private, no-store',
-      'Referrer-Policy': 'no-referrer',
-      'X-Content-Type-Options': 'nosniff',
-    },
+    headers: publicSecurityHeaders(),
   });
+}
+export function publicSecurityHeaders(): Record<string, string> {
+  return {
+    'Cache-Control': 'private, no-store',
+    'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Robots-Tag': 'noindex, nofollow',
+  };
+}
+export function readRequestCookie(
+  request: Request,
+  name: string,
+): string | undefined {
+  const header = request.headers.get('cookie') || '';
+  for (const part of header.split(';')) {
+    const [key, ...rest] = part.trim().split('=');
+    if (key === name) return rest.join('=');
+  }
+}
+export async function publicShareApi(
+  request: Request,
+  handler: () => Promise<unknown>,
+  options: { checkOrigin?: boolean } = {},
+) {
+  try {
+    if (
+      options.checkOrigin &&
+      request.method !== 'GET' &&
+      !validOrigin(request.headers.get('origin'), environment().APP_ORIGIN)
+    )
+      throw new ReportError(
+        403,
+        'FORBIDDEN',
+        'Request origin was not accepted.',
+      );
+    const result = await handler();
+    if (result instanceof Response) return result;
+    return reply(result);
+  } catch (error) {
+    if (error instanceof ReportError)
+      return reply(
+        {
+          code: error.code,
+          message: error.message,
+          fields: error.fields,
+        },
+        error.status,
+      );
+    return reply(
+      {
+        code: 'UNAVAILABLE',
+        message: 'This report link is unavailable. Please try again later.',
+      },
+      503,
+    );
+  }
+}
+export async function publicSharePdfApi(
+  handler: () => Promise<{ pdf: Buffer; filename: string }>,
+) {
+  try {
+    const { pdf, filename } = await handler();
+    return new Response(new Uint8Array(pdf), {
+      status: 200,
+      headers: {
+        ...publicSecurityHeaders(),
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      },
+    });
+  } catch (error) {
+    if (error instanceof ReportError)
+      return reply(
+        {
+          code: error.code,
+          message: error.message,
+          fields: error.fields,
+        },
+        error.status,
+      );
+    return reply(
+      {
+        code: 'UNAVAILABLE',
+        message: 'This report link is unavailable. Please try again later.',
+      },
+      503,
+    );
+  }
 }
 export async function readReportBody(request: Request): Promise<unknown> {
   if (!request.headers.get('content-type')?.startsWith('application/json'))

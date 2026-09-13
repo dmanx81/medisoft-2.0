@@ -50,7 +50,7 @@ export const navigation: {
     permission: 'reports:read',
     group: 'Practice',
     description:
-      'Issue official laboratory reports, download PDFs and record delivery.',
+      'Issue official laboratory reports, download PDFs, record delivery and create secure patient links.',
   },
   {
     label: 'Doctors',

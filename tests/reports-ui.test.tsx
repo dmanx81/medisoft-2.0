@@ -176,6 +176,7 @@ void test('report history remains downloadable and flags later amendments', () =
   assert.ok(html.includes('v1'));
   assert.ok(html.includes('Download PDF'));
   assert.ok(html.includes('/api/lab-reports/00000000-0000-4000-8000-000000000020/pdf'));
+  assert.ok(!html.includes('Create secure link'));
   const amended = renderToStaticMarkup(
     <OrderDetail
       initial={{ ...order, status: 'IN_PROCESS', reports: [report] }}

@@ -10,6 +10,7 @@ Validation is performed on the local checkout, with synthetic data only. No live
 - Laboratory order and specimen tests for draft/place, catalogue snapshots, derived collection progress, specimen–test linking, compatibility, rejection with replacement, cancellation, RBAC and cross-tenant 404s. Order APIs deny unauthenticated access and do not expose clinical DELETE.
 - Laboratory result tests for ordered-test ownership, result-time snapshots, deterministic flags, `IN_PROCESS`, technical validation, clinical verification, amendments, RBAC and cross-tenant 404s. Result APIs deny unauthenticated access and do not expose clinical DELETE.
 - Laboratory report tests for order completion/reopening, report eligibility, immutable snapshots, versioning, PDF download, delivery records, RBAC and cross-tenant 404s. Report APIs deny unauthenticated access and do not expose clinical DELETE.
+- Laboratory report-sharing tests for version-bound secure links, hashed tokens/PINs, expiry, revocation, PIN sessions, public PDF snapshot rendering, RBAC and cross-tenant 404s. Public token failures stay generic. Internal share APIs deny unauthenticated access and do not expose share DELETE.
 - HTTP checks against Next.js for all protected module URLs, public English/Albanian pages and demos, forged session cookie rejection, origin validation, invalid input and bounded request bodies. Catalogue, order, result and report pages/APIs deny unauthenticated access and do not expose hard deletion of clinical records.
 - Standard Next.js production build.
 
@@ -32,6 +33,6 @@ npm run build:node
 SMOKE_ORIGIN=http://localhost:3000 npm run test:http
 ```
 
-PGlite covers application SQL and handlers. Real PostgreSQL 17 verification applies `006_lab_reports.sql` through `scripts/migrate.ts`, confirms idempotent re-runs, and exercises order completion, report issuance, snapshot immutability, PDF download and delivery recording on the saved development database.
+PGlite covers application SQL and handlers. Real PostgreSQL 17 verification applies `007_report_sharing.sql` through `scripts/migrate.ts`, confirms idempotent re-runs, and exercises secure report sharing on the saved development database.
 
 The Sites/Vinext toolchain is unchanged and still carries dependency advisories. It is not the supported PostgreSQL application runtime.

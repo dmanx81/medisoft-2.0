@@ -9,6 +9,7 @@ import {
   reportStatusLabels,
 } from '@/features/reports/format';
 import { stampLabel } from '@/features/orders/format';
+import { ReportSharePanel } from '@/components/reports/share-panel';
 type Failure = { code?: string; message?: string; fields?: Record<string, string> };
 export function ReportPanel({
   order,
@@ -16,6 +17,8 @@ export function ReportPanel({
   canGenerate,
   canDownload,
   canDeliver,
+  canShare = false,
+  canRevokeShares = false,
   busy,
   onSave,
   onFailure,
@@ -25,6 +28,8 @@ export function ReportPanel({
   canGenerate: boolean;
   canDownload: boolean;
   canDeliver: boolean;
+  canShare?: boolean;
+  canRevokeShares?: boolean;
   busy: boolean;
   onSave: (order: LabOrder) => void;
   onFailure: (failure: Failure | null) => void;
@@ -130,6 +135,8 @@ export function ReportPanel({
                   report={report}
                   canDownload={canDownload}
                   canDeliver={canDeliver}
+                  canShare={canShare}
+                  canRevokeShares={canRevokeShares}
                   busy={busy}
                   method={method}
                   recipient={recipient}
@@ -152,6 +159,8 @@ function ReportHistoryRow({
   report,
   canDownload,
   canDeliver,
+  canShare,
+  canRevokeShares,
   busy,
   method,
   recipient,
@@ -163,6 +172,8 @@ function ReportHistoryRow({
   report: LabReport;
   canDownload: boolean;
   canDeliver: boolean;
+  canShare: boolean;
+  canRevokeShares: boolean;
   busy: boolean;
   method: string;
   recipient: string;
@@ -254,6 +265,13 @@ function ReportHistoryRow({
           </button>
         </form>
       )}
+      <ReportSharePanel
+        report={report}
+        canShare={canShare}
+        canRevoke={canRevokeShares}
+        busy={busy}
+        onFailure={onFailure}
+      />
     </li>
   );
 }

@@ -43,6 +43,8 @@ export function OrderDetail({
   canGenerateReports = false,
   canDownloadReports = false,
   canDeliverReports = false,
+  canShareReports = false,
+  canRevokeReportShares = false,
 }: {
   initial: LabOrder;
   activity: LabOrderActivity[];
@@ -61,6 +63,8 @@ export function OrderDetail({
   canGenerateReports?: boolean;
   canDownloadReports?: boolean;
   canDeliverReports?: boolean;
+  canShareReports?: boolean;
+  canRevokeReportShares?: boolean;
 }) {
   const [order, setOrder] = useState(initial);
   const [activity, setActivity] = useState(initialActivity);
@@ -457,6 +461,8 @@ export function OrderDetail({
         canGenerate={canGenerateReports}
         canDownload={canDownloadReports}
         canDeliver={canDeliverReports}
+        canShare={canShareReports}
+        canRevokeShares={canRevokeReportShares}
         busy={busy}
         onSave={(next) => {
           setOrder(next);

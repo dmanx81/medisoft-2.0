@@ -60,8 +60,8 @@ Organization IDs, eligibility flags and version numbers from the browser are not
 
 ## UI
 
-Completed orders show a completion badge. Authorized users can issue a report, download historical PDFs, see version/current markers and record delivery. After an amendment the order shows that a newer official report is required once results are re-verified. `/app/reports` lists issued reports for the organization.
+Completed orders show a completion badge. Authorized users can issue a report, download historical PDFs, see version/current markers, record delivery and create secure patient links. After an amendment the order shows that a newer official report is required once results are re-verified. `/app/reports` lists issued reports for the organization.
 
 ## Known limitations
 
-No HL7/FHIR, analyzer import, patient portal, public report links, email/SMS sending, e-signature/PKI, QR verification, billing, inventory, QC or AI interpretation.
+No HL7/FHIR, analyzer import, patient portal, email/SMS sending, e-signature/PKI, QR verification, billing, inventory, QC or AI interpretation. Public report links are implemented in Phase 7; see [lab-report-sharing.md](lab-report-sharing.md).
