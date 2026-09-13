@@ -96,7 +96,6 @@ void test('reports worklist searches issued reports', () => {
   ])
     assert.ok(html.includes(text), text);
 });
-});
 void test('completed orders show generate report controls by permission', () => {
   const html = renderToStaticMarkup(
     <OrderDetail
