@@ -49,6 +49,7 @@ Stored status is updated only by server actions. Collection/receipt progress is 
 - `COLLECTED` — every active test is covered, but not every covering specimen is RECEIVED
 - `RECEIVED` — every active test is covered by a RECEIVED specimen
 - `IN_PROCESS` — result entry has started (Phase 5)
+- `COMPLETED` — every active ordered test has a current clinically verified result (Phase 6)
 - `CANCELLED` — terminal; history retained
 
 Legal transitions:
@@ -119,4 +120,4 @@ Organization, actors, order numbers and accession numbers cannot be mass-assigne
 
 ## Known limitations
 
-No PDF reports, billing, analyzers, HL7/FHIR, barcode hardware, label printers, panels, configurable specimen catalogues, aliquots, microbiology/pathology workflows or AI. Overlapping collection of the same test is blocked while a collected/received specimen already covers it; a rejected specimen can be replaced. STAT priority is not implemented. Doctors can read orders and results in Phase 5. See [lab-results.md](lab-results.md).
+No PDF reports, billing, analyzers, HL7/FHIR, barcode hardware, label printers, panels, configurable specimen catalogues, aliquots, microbiology/pathology workflows or AI. Overlapping collection of the same test is blocked while a collected/received specimen already covers it; a rejected specimen can be replaced. STAT priority is not implemented. Doctors can read orders and results in Phase 5. Official reports are in [lab-reports.md](lab-reports.md).

@@ -43,6 +43,10 @@ export default async function OrderPage({
         canValidateResults={can(user.role, 'results:validate')}
         canVerifyResults={can(user.role, 'results:verify')}
         canAmendResults={can(user.role, 'results:amend')}
+        canReadReports={can(user.role, 'reports:read')}
+        canGenerateReports={can(user.role, 'reports:generate')}
+        canDownloadReports={can(user.role, 'reports:download')}
+        canDeliverReports={can(user.role, 'reports:deliver')}
       />
     </div>
   );

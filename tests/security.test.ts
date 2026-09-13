@@ -57,6 +57,15 @@ void test('roles deny privileges by default and permit only named grants', () =>
   assert.equal(can('LAB_TECHNICIAN', 'results:amend'), false);
   assert.equal(can('BIOCHEMIST', 'results:verify'), true);
   assert.equal(can('BIOCHEMIST', 'results:amend'), true);
+  assert.equal(can('BIOCHEMIST', 'reports:generate'), true);
+  assert.equal(can('BIOCHEMIST', 'reports:download'), true);
+  assert.equal(can('BIOCHEMIST', 'reports:deliver'), true);
+  assert.equal(can('DOCTOR', 'reports:read'), true);
+  assert.equal(can('DOCTOR', 'reports:download'), true);
+  assert.equal(can('DOCTOR', 'reports:generate'), false);
+  assert.equal(can('DOCTOR', 'reports:deliver'), false);
+  assert.equal(can('LAB_TECHNICIAN', 'reports:read'), false);
+  assert.equal(can('RECEPTIONIST', 'reports:read'), false);
   assert.equal(can('RECEPTIONIST', 'results:read'), false);
   assert.equal(can('VIEWER', 'orders:read'), false);
   assert.equal(can('ORG_ADMIN', 'orders:cancel'), true);

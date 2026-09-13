@@ -55,6 +55,7 @@ const order: LabOrder = {
   ],
   specimens: [],
   results: [],
+  reports: [],
   test_count: 1,
   covered_count: 1,
   received_count: 1,

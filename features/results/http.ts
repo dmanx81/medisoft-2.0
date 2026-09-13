@@ -5,6 +5,7 @@ import { validOrigin } from '@/lib/validation';
 import { environment } from '@/lib/env';
 import { OrderError } from '@/features/orders/types';
 import { ResultError } from './types';
+import { ReportError } from '@/features/reports/types';
 export async function resultApi(
   request: Request,
   permission: Permission,
@@ -31,7 +32,11 @@ export async function resultApi(
       );
     return reply(await handler(principal));
   } catch (error) {
-    if (error instanceof ResultError || error instanceof OrderError)
+    if (
+      error instanceof ResultError ||
+      error instanceof OrderError ||
+      error instanceof ReportError
+    )
       return reply(
         {
           code: error.code,

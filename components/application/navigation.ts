@@ -50,7 +50,7 @@ export const navigation: {
     permission: 'reports:read',
     group: 'Practice',
     description:
-      'Validated laboratory reports will be available in a future release.',
+      'Issue official laboratory reports, download PDFs and record delivery.',
   },
   {
     label: 'Doctors',

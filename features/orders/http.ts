@@ -5,8 +5,10 @@ import { validOrigin } from '@/lib/validation';
 import { environment } from '@/lib/env';
 import type { QueryRunner } from '@/lib/db/query';
 import { listResultsForOrder } from '@/features/results/repository';
+import { listReportsForOrder } from '@/features/reports/list';
 import { OrderError, type LabOrder } from './types';
 import { ResultError } from '@/features/results/types';
+import { ReportError } from '@/features/reports/types';
 export async function orderApi(
   request: Request,
   permission: Permission,
@@ -33,7 +35,11 @@ export async function orderApi(
       );
     return reply(await handler(principal));
   } catch (error) {
-    if (error instanceof OrderError || error instanceof ResultError)
+    if (
+      error instanceof OrderError ||
+      error instanceof ResultError ||
+      error instanceof ReportError
+    )
       return reply(
         {
           code: error.code,
@@ -68,6 +74,7 @@ export async function attachResults(
   order: LabOrder,
 ) {
   order.results = await listResultsForOrder(db, principal, order.id);
+  order.reports = await listReportsForOrder(db, principal, order.id);
   return order;
 }
 export async function readOrderBody(request: Request): Promise<unknown> {

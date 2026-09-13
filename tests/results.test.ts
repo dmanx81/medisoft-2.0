@@ -41,6 +41,7 @@ async function fixture() {
     '003_lab_catalogue.sql',
     '004_lab_orders_specimens.sql',
     '005_lab_results.sql',
+    '006_lab_reports.sql',
   ])
     await db.exec(
       await readFile(

@@ -42,12 +42,12 @@ Non-numeric results and numeric results without a selected range are `UNINTERPRE
 
 Statuses stay separate:
 
-- order: `RECEIVED` → `IN_PROCESS` on first result entry (`IN_PROCESS` is sticky and is not derived back to RECEIVED)
+- order: `RECEIVED` → `IN_PROCESS` on first result entry; `IN_PROCESS` → `COMPLETED` when every active ordered test has a current clinically verified result (`COMPLETED` reopens to `IN_PROCESS` if an amendment is the new current result)
 - ordered test: `ACTIVE` | `CANCELLED`
 - specimen: `COLLECTED` | `RECEIVED` | `REJECTED`
 - result: `ENTERED` → `TECHNICALLY_VALIDATED` → `CLINICALLY_VERIFIED`; amendments mark the predecessor `SUPERSEDED`
 
-Entry requires an `ACTIVE` ordered test covered by a `RECEIVED` specimen on a `RECEIVED` or `IN_PROCESS` order. `ENTERED` rows may be updated in place. After technical validation, values cannot be overwritten; clinically verified rows are corrected only by amendment.
+Entry requires an `ACTIVE` ordered test covered by a `RECEIVED` specimen on a `RECEIVED`, `IN_PROCESS` or `COMPLETED` order. `ENTERED` rows may be updated in place. After technical validation, values cannot be overwritten; clinically verified rows are corrected only by amendment.
 
 Invalid transitions return `INVALID_ORDER_STATUS`, `INVALID_RESULT_STATUS` or `INVALID_RESULT_TRANSITION`.
 
@@ -87,8 +87,8 @@ Append-only `audit_events` records `RESULT_ENTERED`, `RESULT_UPDATED`, `LAB_ORDE
 
 ## Known limitations
 
-No PDF reports, result delivery, order-completed status after every test is verified, analyzer import, HL7/FHIR, patient portal, QC, billing or AI interpretation.
+Result entry, technical validation, clinical verification and amendments are implemented. Analyzer import, HL7/FHIR, patient portal, QC, billing and AI interpretation remain out of scope.
 
-## Phase 6 handoff
+## Phase 6
 
-Laboratory reports/PDFs and delivery of clinically verified results, plus an order-level completed status once every active ordered test has a current clinically verified result.
+Laboratory reports, PDF generation, report history, controlled delivery records and order-level `COMPLETED` status are implemented. See [lab-reports.md](lab-reports.md).

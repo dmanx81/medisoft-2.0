@@ -1,6 +1,7 @@
 import type { QueryRunner } from '@/lib/db/query';
 import { can, type Permission, type Principal } from '@/lib/auth/permissions';
 import { getOrder } from '@/features/orders/repository';
+import { evaluateOrderCompletion } from '@/features/reports/completion';
 import { OrderError, type LabOrder } from '@/features/orders/types';
 import { calculateNumericFlag } from './flags';
 import { selectReferenceRange, type SelectableRange } from './ranges';
@@ -301,7 +302,11 @@ async function requireEligibleTest(
     asOrderError(error);
   }
   if (Number(order.version) !== orderVersion) stale();
-  if (order.status !== 'RECEIVED' && order.status !== 'IN_PROCESS')
+  if (
+    order.status !== 'RECEIVED' &&
+    order.status !== 'IN_PROCESS' &&
+    order.status !== 'COMPLETED'
+  )
     throw new ResultError(
       409,
       'INVALID_ORDER_STATUS',
@@ -418,7 +423,11 @@ async function writeEnteredResult(
     )
   ).rows[0];
   if (!locked) notFound('ORDER_NOT_FOUND', 'Order');
-  if (locked.status !== 'RECEIVED' && locked.status !== 'IN_PROCESS')
+  if (
+    locked.status !== 'RECEIVED' &&
+    locked.status !== 'IN_PROCESS' &&
+    locked.status !== 'COMPLETED'
+  )
     throw new ResultError(
       409,
       'INVALID_ORDER_STATUS',
@@ -742,6 +751,7 @@ export async function verifyResult(
         to: 'CLINICALLY_VERIFIED',
       },
     );
+    await evaluateOrderCompletion(db, principal, result.order_id);
     return orderWithResults(db, principal, result.order_id);
   });
 }
@@ -795,7 +805,12 @@ export async function amendResult(
         [principal.organizationId, current.order_id],
       )
     ).rows[0];
-    if (!order || (order.status !== 'IN_PROCESS' && order.status !== 'RECEIVED'))
+    if (
+      !order ||
+      (order.status !== 'IN_PROCESS' &&
+        order.status !== 'RECEIVED' &&
+        order.status !== 'COMPLETED')
+    )
       throw new ResultError(
         409,
         'INVALID_ORDER_STATUS',
@@ -830,6 +845,7 @@ export async function amendResult(
       supersedes_id: current.id,
       reason: parsed.data.reason,
     });
+    await evaluateOrderCompletion(db, principal, current.order_id);
     return orderWithResults(db, principal, current.order_id);
   });
 }
