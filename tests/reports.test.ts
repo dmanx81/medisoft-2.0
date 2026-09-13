@@ -247,18 +247,14 @@ function withoutLiveClinical(db: PGlite): QueryRunner {
 function pdfText(buffer: Buffer) {
   const raw = buffer.toString('latin1');
   const parts: string[] = [];
-  for (const match of raw.matchAll(/\((?:\\.|[^\\)])*\)/g)) {
-    parts.push(
-      match[0]
-        .slice(1, -1)
-        .replace(/\\n/g, '\n')
-        .replace(/\\([()\\])/g, '$1'),
-    );
-  }
   for (const match of raw.matchAll(/<([0-9A-Fa-f]+)>/g)) {
+    if (match[1].length % 2 !== 0) continue;
     parts.push(Buffer.from(match[1], 'hex').toString('latin1'));
   }
-  return parts.join('\n');
+  for (const match of raw.matchAll(/\(([^\\()]{1,160})\)/g)) {
+    parts.push(match[1]);
+  }
+  return parts.join('');
 }
 void test('order completion follows current clinically verified results', async () => {
   const { db, a, patientA, gluA, altA } = await fixture();
