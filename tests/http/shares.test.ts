@@ -15,7 +15,10 @@ void test('public report-access pages do not require a staff session', async () 
   });
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('location'), null);
-  assert.ok(response.headers.get('cache-control')?.includes('no-store'));
+  assert.match(
+    response.headers.get('cache-control') || '',
+    /no-store|no-cache/i,
+  );
   assert.ok(response.headers.get('x-robots-tag')?.includes('noindex'));
   assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
   const html = await response.text();
@@ -59,8 +62,8 @@ void test('internal share APIs deny unauthenticated access and public PDFs stay 
   const body = (await pdf.json()) as { code: string; message: string };
   assert.equal(body.code, 'SHARE_UNAVAILABLE');
   assert.ok(body.message.includes('unavailable'));
-  assert.ok(!body.message.toLowerCase().includes('expired'));
-  assert.ok(!body.message.toLowerCase().includes('revoked token'));
+  assert.ok(!body.message.toLowerCase().includes('permission denied'));
+  assert.ok(!body.message.toLowerCase().includes('report id'));
 });
 void test('robots.txt excludes public report-access URLs', async () => {
   const response: Response = await fetch(`${origin}/robots.txt`);

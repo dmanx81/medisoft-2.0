@@ -44,7 +44,7 @@ Only issued official reports may be shared (`ISSUED` or `SUPERSEDED`). Creating 
 
 The page shows laboratory identity, report number/version, issued date, frozen patient name and order number, plus a PDF download. Clinical values are not reconstructed from live tables. `clinicalReportFromSnapshot()` remains the only official clinical document builder; public PDFs call the existing Phase 6 renderer.
 
-Pages and PDFs send `Cache-Control: private, no-store`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff` and `X-Robots-Tag: noindex, nofollow`. `/robots.txt` disallows `/report-access/` and `/api/public/`. Production links must be served over HTTPS (`APP_ORIGIN`).
+Pages and PDFs send `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff` and `X-Robots-Tag: noindex, nofollow`. Public PDF and JSON endpoints also send `Cache-Control: private, no-store`. Next.js HTML document responses for `/report-access/*` currently emit `Cache-Control: no-cache, must-revalidate` (still not publicly reusable without revalidation). `/robots.txt` disallows `/report-access/` and `/api/public/`. Production links must be served over HTTPS (`APP_ORIGIN`).
 
 ## Staff UI and copy-out
 

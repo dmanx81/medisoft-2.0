@@ -14,7 +14,14 @@ export default async function ReportAccessPage({
 }) {
   const { token } = await params;
   const session = (await cookies()).get(shareCookie)?.value;
-  const inspection = await inspectPublicShare(database(), token, session);
+  let inspection: Awaited<ReturnType<typeof inspectPublicShare>> = {
+    status: 'unavailable',
+  };
+  try {
+    inspection = await inspectPublicShare(database(), token, session);
+  } catch {
+    inspection = { status: 'unavailable' };
+  }
   return (
     <main className="min-h-screen bg-ivory px-4 py-10 text-ink">
       <div className="mx-auto max-w-xl">
@@ -25,7 +32,9 @@ export default async function ReportAccessPage({
             initial={
               inspection.status === 'ready' && inspection.view
                 ? { status: 'ready', view: inspection.view }
-                : { status: inspection.status }
+                : inspection.status === 'verify'
+                  ? { status: 'verify' }
+                  : { status: 'unavailable' }
             }
           />
         </div>

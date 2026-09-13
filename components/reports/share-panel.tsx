@@ -11,16 +11,7 @@ import { stampLabel } from '@/features/orders/format';
 type Failure = { code?: string; message?: string; fields?: Record<string, string> };
 
 async function copyText(value: string) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value);
-    return;
-  }
-  const field = document.createElement('textarea');
-  field.value = value;
-  document.body.appendChild(field);
-  field.select();
-  document.execCommand('copy');
-  field.remove();
+  await navigator.clipboard.writeText(value);
 }
 
 export function ReportSharePanel({
