@@ -65,8 +65,8 @@ export function ReportList({
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Laboratory reports</h1>
         <p className="mt-1 text-sm text-slate">
-          Issued reports for this organization. Official PDFs are generated from
-          frozen snapshots.
+          Issued reports for this organization. Official PDFs and list labels
+          come from each report&apos;s frozen snapshot.
         </p>
       </div>
       <form

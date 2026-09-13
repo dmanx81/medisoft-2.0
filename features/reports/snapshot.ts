@@ -1,6 +1,10 @@
 import type { QueryRunner } from '@/lib/db/query';
 import type { Principal } from '@/lib/auth/permissions';
-import { displayRangeBounds, displayResultValue } from '@/features/results/format';
+import {
+  displayRangeBounds,
+  displayResultValue,
+  resultFlagLabels,
+} from '@/features/results/format';
 import type { LabReportSnapshot } from './types';
 
 export async function buildReportSnapshot(
@@ -174,6 +178,7 @@ export async function buildReportSnapshot(
       unit_symbol: row.unit_symbol,
       method: row.method,
       flag: row.flag,
+      flag_display: resultFlagLabels[row.flag] || row.flag,
       reference_range_display: displayRangeBounds({
         range_lower_snapshot: row.range_lower,
         range_upper_snapshot: row.range_upper,

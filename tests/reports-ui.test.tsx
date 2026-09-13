@@ -90,10 +90,12 @@ void test('reports worklist searches issued reports', () => {
     'Laboratory reports',
     'Search reports',
     'No issued laboratory reports',
+    'frozen snapshot',
     'Previous',
     'Next',
   ])
     assert.ok(html.includes(text), text);
+});
 });
 void test('completed orders show generate report controls by permission', () => {
   const html = renderToStaticMarkup(

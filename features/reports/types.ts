@@ -50,6 +50,7 @@ export type LabReportSnapshot = {
     unit_symbol: string;
     method: string;
     flag: string;
+    flag_display?: string;
     reference_range_display: string;
     range_lower: string;
     range_upper: string;
@@ -61,6 +62,12 @@ export type LabReportSnapshot = {
     is_amendment: boolean;
     amendment_reason: string;
   }[];
+  issuance?: {
+    report_number: string;
+    report_version: number;
+    issued_at: string;
+    issued_by_name: string;
+  };
 };
 export type LabReport = {
   id: string;

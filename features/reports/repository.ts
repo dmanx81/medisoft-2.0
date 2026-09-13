@@ -5,6 +5,7 @@ import { listResultsForOrder } from '@/features/results/repository';
 import { OrderError, type LabOrder } from '@/features/orders/types';
 import { ResultError } from '@/features/results/types';
 import { orderCompletionState } from './completion';
+import { attachIssuance } from './clinical';
 import { buildReportSnapshot, snapshotResultIds } from './snapshot';
 import { renderReportPdf } from './pdf';
 import { listReportsForOrder, mapReport, reportSelect } from './list';
@@ -260,14 +261,14 @@ export async function generateReport(
         [principal.organizationId, locked.id],
       )
     ).rows[0];
-    const snapshot = await buildReportSnapshot(db, principal, locked.id);
+    const clinical = await buildReportSnapshot(db, principal, locked.id);
     if (current) {
       const previous =
         typeof current.snapshot === 'string'
           ? (JSON.parse(current.snapshot) as LabReportSnapshot)
           : current.snapshot;
       if (
-        JSON.stringify(snapshotResultIds(snapshot)) ===
+        JSON.stringify(snapshotResultIds(clinical)) ===
         JSON.stringify(snapshotResultIds(previous))
       )
         throw new ReportError(
@@ -278,6 +279,13 @@ export async function generateReport(
     }
     const nextVersion = current ? Number(current.report_version) + 1 : 1;
     const reportNumber = `${locked.order_number}-R${nextVersion}`;
+    const issuedAt = new Date().toISOString();
+    const snapshot = attachIssuance(clinical, {
+      report_number: reportNumber,
+      report_version: nextVersion,
+      issued_at: issuedAt,
+      issued_by_name: principal.name,
+    });
     if (current) {
       await db.query(
         `UPDATE lab_reports SET is_current=false,status='SUPERSEDED',updated_by=$3,version=version+1
@@ -288,9 +296,9 @@ export async function generateReport(
     const inserted = (
       await db.query<{ id: string }>(
         `INSERT INTO lab_reports(
- organization_id,order_id,patient_id,report_number,report_version,snapshot,issued_by,
+ organization_id,order_id,patient_id,report_number,report_version,issued_at,snapshot,issued_by,
  created_by,updated_by,supersedes_id)
- VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,$7,$7,$8)
+ VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$8,$8,$9)
  RETURNING id`,
         [
           principal.organizationId,
@@ -298,6 +306,7 @@ export async function generateReport(
           locked.patient_id,
           reportNumber,
           nextVersion,
+          issuedAt,
           JSON.stringify(snapshot),
           principal.userId,
           current?.id ?? null,
@@ -341,7 +350,15 @@ export async function downloadReportPdf(
 ): Promise<{ report: LabReport; pdf: Buffer }> {
   permit(principal, 'reports:download');
   const { report, snapshot } = await loadSnapshot(db, principal, id);
-  const pdf = await renderReportPdf(report, snapshot);
+  const pdf = await renderReportPdf(snapshot, {
+    superseded: report.status === 'SUPERSEDED',
+    fallback: {
+      report_number: report.report_number,
+      report_version: report.report_version,
+      issued_at: report.issued_at,
+      issued_by_name: report.issued_by_name,
+    },
+  });
   await audit(db, principal, 'LAB_REPORT', report.id, 'LAB_REPORT_DOWNLOADED', {
     order_id: report.order_id,
     report_version: report.report_version,
@@ -428,16 +445,17 @@ export async function listReportWork(
   const { query, page: requestedPage, pageSize } = parsed.data;
   const pattern = `%${query.replace(/[\\%_]/g, '\\$&')}%`;
   const where = `r.organization_id=$1 AND ($2='' OR r.report_number ILIKE $3
- OR o.order_number ILIKE $3 OR p.first_name ILIKE $3 OR p.last_name ILIKE $3
- OR (p.first_name || ' ' || p.last_name) ILIKE $3 OR p.patient_number ILIKE $3)`;
+ OR r.snapshot#>>'{order,order_number}' ILIKE $3
+ OR r.snapshot#>>'{patient,first_name}' ILIKE $3
+ OR r.snapshot#>>'{patient,last_name}' ILIKE $3
+ OR (COALESCE(r.snapshot#>>'{patient,first_name}','') || ' ' ||
+  COALESCE(r.snapshot#>>'{patient,last_name}','')) ILIKE $3
+ OR r.snapshot#>>'{patient,patient_number}' ILIKE $3)`;
   const values = [principal.organizationId, query, pattern];
   const total = Number(
     (
       await db.query<{ total: string }>(
-        `SELECT count(*)::text AS total FROM lab_reports r
- JOIN lab_orders o ON o.organization_id=r.organization_id AND o.id=r.order_id
- JOIN patients p ON p.organization_id=r.organization_id AND p.id=r.patient_id
- WHERE ${where}`,
+        `SELECT count(*)::text AS total FROM lab_reports r WHERE ${where}`,
         values,
       )
     ).rows[0].total,
@@ -449,11 +467,14 @@ export async function listReportWork(
   const reports = (
     await db.query<ReportWorkItem>(
       `SELECT r.id,r.report_number,r.report_version,r.status,r.issued_at::text,
- COALESCE(iss.name,'') AS issued_by_name,r.is_current,o.id AS order_id,o.order_number,o.status AS order_status,
- p.patient_number,p.first_name AS patient_first_name,p.last_name AS patient_last_name
+ COALESCE(r.snapshot#>>'{issuance,issued_by_name}',iss.name,'') AS issued_by_name,
+ r.is_current,r.order_id,
+ COALESCE(r.snapshot#>>'{order,order_number}','') AS order_number,
+ COALESCE(r.snapshot#>>'{order,status}','') AS order_status,
+ COALESCE(r.snapshot#>>'{patient,patient_number}','') AS patient_number,
+ COALESCE(r.snapshot#>>'{patient,first_name}','') AS patient_first_name,
+ COALESCE(r.snapshot#>>'{patient,last_name}','') AS patient_last_name
  FROM lab_reports r
- JOIN lab_orders o ON o.organization_id=r.organization_id AND o.id=r.order_id
- JOIN patients p ON p.organization_id=r.organization_id AND p.id=r.patient_id
  JOIN users iss ON iss.organization_id=r.organization_id AND iss.id=r.issued_by
  WHERE ${where}
  ORDER BY r.issued_at DESC,r.id

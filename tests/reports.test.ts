@@ -28,12 +28,16 @@ import {
   getReport,
   getReportContext,
   listOrderReports,
+  listReportWork,
   recordReportDelivery,
 } from '../features/reports/repository';
+import { clinicalReportFromSnapshot } from '../features/reports/clinical';
+import { renderReportPdf } from '../features/reports/pdf';
 import { ReportError } from '../features/reports/types';
 import type { LabReportSnapshot } from '../features/reports/types';
 import { emptyPatient } from '../features/patients/validation';
 import type { Principal, Role } from '../lib/auth/permissions';
+import type { QueryRunner } from '../lib/db/query';
 import type { LabOrder } from '../features/orders/types';
 async function fixture() {
   const db = new PGlite();
@@ -229,6 +233,17 @@ async function loadSnapshot(db: PGlite, id: string) {
     ? (JSON.parse(row.snapshot) as LabReportSnapshot)
     : row.snapshot;
 }
+const liveClinicalTables =
+  /\b(patients|lab_orders|lab_order_tests|lab_tests|lab_reference_ranges|lab_specimens|lab_specimen_tests|lab_results|lab_units|lab_test_categories)\b/i;
+function withoutLiveClinical(db: PGlite): QueryRunner {
+  return {
+    query(sql, values) {
+      if (liveClinicalTables.test(sql))
+        throw new Error(`Live clinical table read is not allowed: ${sql}`);
+      return db.query(sql, values);
+    },
+  };
+}
 void test('order completion follows current clinically verified results', async () => {
   const { db, a, patientA, gluA, altA } = await fixture();
   try {
@@ -343,6 +358,10 @@ void test('issued reports freeze snapshots, version and remain tenant scoped', a
     assert.equal(snapshot.organization.name, 'a');
     assert.equal(snapshot.results[0].result_display.includes('85'), true);
     assert.equal(snapshot.results[0].unit_symbol, 'mg/dL');
+    assert.equal(snapshot.results[0].flag_display, 'Normal');
+    assert.equal(snapshot.issuance?.report_number, issued.reports[0].report_number);
+    assert.equal(snapshot.issuance?.report_version, 1);
+    assert.equal(snapshot.issuance?.issued_by_name, 'Test');
     await db.query("UPDATE patients SET first_name='Changed' WHERE id=$1", [
       patientA.id,
     ]);
@@ -370,6 +389,21 @@ void test('issued reports freeze snapshots, version and remain tenant scoped', a
     assert.equal(frozen.organization.address, '1 Lab Street');
     assert.equal(frozen.results[0].result_display.includes('85'), true);
     assert.equal(frozen.results[0].method, 'Hexokinase');
+    const clinical = clinicalReportFromSnapshot(frozen);
+    assert.equal(clinical.patient.first_name, 'John');
+    assert.equal(clinical.organization.name, 'a');
+    assert.equal(clinical.results[0].result_display.includes('85'), true);
+    assert.equal(clinical.results[0].method, 'Hexokinase');
+    assert.equal(clinical.results[0].flag_display, 'Normal');
+    assert.equal(clinical.issuance.report_number, issued.reports[0].report_number);
+    const listed = await listReportWork(db, a, { query: 'John' });
+    assert.equal(
+      listed.reports.some((row) => row.id === issued.reports[0].id),
+      true,
+    );
+    assert.equal(listed.reports[0].patient_first_name, 'John');
+    const renamedSearch = await listReportWork(db, a, { query: 'Changed' });
+    assert.equal(renamedSearch.total, 0);
     await assert.rejects(
       db.query("UPDATE lab_reports SET snapshot='{}'::jsonb WHERE id=$1", [
         issued.reports[0].id,
@@ -410,6 +444,12 @@ void test('issued reports freeze snapshots, version and remain tenant scoped', a
     assert.equal(pdf.pdf.subarray(0, 4).toString(), '%PDF');
     assert.equal(pdf.report.id, previous.id);
     assert.equal(pdf.report.report_version, 1);
+    const v1Text = pdf.pdf.toString('latin1');
+    assert.ok(v1Text.includes('John'));
+    assert.ok(v1Text.includes('85'));
+    assert.ok(v1Text.includes('Hexokinase'));
+    assert.equal(v1Text.includes('Changed'), false);
+    assert.equal(v1Text.includes('Renamed'), false);
     await assert.rejects(
       downloadReportPdf(db, asRole('LAB_TECHNICIAN'), currentReport.id),
       hasCode('FORBIDDEN'),
@@ -455,4 +495,182 @@ void test('issued reports freeze snapshots, version and remain tenant scoped', a
   } finally {
     await db.close();
   }
+});
+void test('issued clinical representation is reproduced only from snapshot', async () => {
+  const { db, a, patientA, gluA, unitA, categoryA } = await fixture();
+  try {
+    const received = await receivedOrder(db, a, patientA.id, [gluA.id]);
+    const verified = await verifyValue(db, a, received, received.tests[0].id, '85');
+    const issued = await generateReport(db, a, verified.id, {});
+    const reportId = issued.reports[0].id;
+    const stored = await loadSnapshot(db, reportId);
+    await db.query("UPDATE patients SET first_name='Changed',last_name='Other' WHERE id=$1", [
+      patientA.id,
+    ]);
+    await db.query(
+      "UPDATE organizations SET name='Renamed Lab',address='Other street',phone='+355999' WHERE id=$1",
+      [a.organizationId],
+    );
+    await db.query(
+      "UPDATE lab_orders SET ordering_physician_name='Dr Later',clinical_notes='After issuance' WHERE id=$1",
+      [issued.id],
+    );
+    await db.query(
+      "UPDATE lab_specimens SET collection_notes='Later collection' WHERE order_id=$1",
+      [issued.id],
+    );
+    await db.query(
+      "UPDATE lab_reference_ranges SET lower_bound=10,upper_bound=20,method='Later range' WHERE organization_id=$1",
+      [a.organizationId],
+    );
+    await updateTest(db, a, gluA.id, {
+      data: {
+        ...testInput(categoryA.id, unitA.id, 'GLU').data,
+        name: 'Glucose later',
+        method: 'Changed later',
+        is_active: true,
+      },
+      version: Number(gluA.version),
+    });
+    const current = issued.results.find((row) => row.is_current)!;
+    await amendResult(db, a, current.id, {
+      numeric_value: '92',
+      reason: 'Clinician requested repeat',
+      version: Number(current.version),
+    });
+    const snapshotOnly = await loadSnapshot(db, reportId);
+    assert.deepEqual(snapshotOnly, stored);
+    const clinical = clinicalReportFromSnapshot(snapshotOnly);
+    assert.equal(clinical.patient.first_name, 'John');
+    assert.equal(clinical.patient.last_name, 'Test');
+    assert.equal(clinical.organization.name, 'a');
+    assert.equal(clinical.organization.address, '1 Lab Street');
+    assert.equal(clinical.order.ordering_physician_name, 'Dr Example');
+    assert.equal(clinical.notes, '');
+    assert.equal(clinical.results[0].test_name, 'GLU');
+    assert.equal(clinical.results[0].result_display.includes('85'), true);
+    assert.equal(clinical.results[0].numeric_value, '85');
+    assert.equal(clinical.results[0].method, 'Hexokinase');
+    assert.equal(clinical.results[0].reference_range_display.includes('70'), true);
+    assert.equal(clinical.results[0].reference_range_display.includes('99'), true);
+    assert.equal(clinical.results[0].flag_display, 'Normal');
+    assert.equal(clinical.issuance.report_number, issued.reports[0].report_number);
+    assert.equal(clinical.patient.first_name.includes('Changed'), false);
+    assert.equal(clinical.results[0].method.includes('Changed'), false);
+    assert.equal(clinical.results[0].numeric_value, '85');
+    const pdf = await renderReportPdf(snapshotOnly);
+    const text = pdf.toString('latin1');
+    assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
+    assert.ok(text.includes('John'));
+    assert.ok(text.includes('Test'));
+    assert.ok(text.includes('85'));
+    assert.ok(text.includes('Hexokinase'));
+    assert.ok(text.includes(issued.reports[0].report_number));
+    assert.equal(text.includes('Changed'), false);
+    assert.equal(text.includes('Renamed Lab'), false);
+    assert.equal(text.includes('Dr Later'), false);
+    assert.equal(text.includes('After issuance'), false);
+    assert.equal(text.includes('Glucose later'), false);
+    const downloaded = await downloadReportPdf(
+      withoutLiveClinical(db),
+      a,
+      reportId,
+    );
+    const downloadedText = downloaded.pdf.toString('latin1');
+    assert.ok(downloadedText.includes('John'));
+    assert.ok(downloadedText.includes('85'));
+    assert.equal(downloadedText.includes('Changed'), false);
+    const listed = await listReportWork(withoutLiveClinical(db), a, {
+      query: 'John',
+    });
+    const item = listed.reports.find((row) => row.id === reportId);
+    assert.equal(item?.patient_first_name, 'John');
+    assert.equal(item?.patient_last_name, 'Test');
+    assert.equal(item?.order_number, issued.order_number);
+    const laterName = await listReportWork(withoutLiveClinical(db), a, {
+      query: 'Changed',
+    });
+    assert.equal(laterName.total, 0);
+  } finally {
+    await db.close();
+  }
+});
+void test('legacy snapshots render from frozen clinical fields plus row issuance', async () => {
+  const snapshot: LabReportSnapshot = {
+    schema_version: 1,
+    organization: {
+      name: 'Legacy Lab',
+      slug: 'legacy',
+      type: 'CLINIC',
+      address: '1 Lab Street',
+      phone: '',
+      email: '',
+      country: 'AL',
+    },
+    patient: {
+      patient_number: 'PAT-000001',
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      date_of_birth: '1815-12-10',
+      sex: 'FEMALE',
+    },
+    order: {
+      order_number: 'LAB-2026-000001',
+      status: 'COMPLETED',
+      priority: 'ROUTINE',
+      ordered_at: '',
+      ordered_by_name: '',
+      ordering_physician_name: '',
+      clinical_notes: '',
+      fasting_status: '',
+      external_reference: '',
+    },
+    specimens: [],
+    results: [
+      {
+        order_test_id: 't',
+        result_id: 'r',
+        result_version: 1,
+        test_code: 'GLU',
+        test_name: 'Glucose',
+        result_type: 'NUMERIC',
+        result_display: '88 mg/dL',
+        numeric_value: '88',
+        text_value: '',
+        boolean_value: '',
+        unit_symbol: 'mg/dL',
+        method: 'Hexokinase',
+        flag: 'NORMAL',
+        reference_range_display: '70-99 mg/dL',
+        range_lower: '70',
+        range_upper: '99',
+        range_text: '',
+        technically_validated_at: '',
+        technically_validated_by_name: '',
+        clinically_verified_at: '',
+        clinically_verified_by_name: '',
+        is_amendment: false,
+        amendment_reason: '',
+      },
+    ],
+  };
+  const fallback = {
+    report_number: 'LAB-2026-000001-R1',
+    report_version: 1,
+    issued_at: '2026-09-12T07:57:00.000Z',
+    issued_by_name: 'Issuer',
+    superseded: true,
+  };
+  const clinical = clinicalReportFromSnapshot(snapshot, fallback);
+  assert.equal(clinical.patient.first_name, 'Ada');
+  assert.equal(clinical.results[0].flag_display, 'Normal');
+  assert.equal(clinical.issuance.report_number, 'LAB-2026-000001-R1');
+  assert.equal(clinical.issuance.superseded, true);
+  const pdf = await renderReportPdf(snapshot, { fallback });
+  const text = pdf.toString('latin1');
+  assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
+  assert.ok(text.includes('Ada'));
+  assert.ok(text.includes('88 mg/dL'));
+  assert.ok(text.includes('LAB-2026-000001-R1'));
+  assert.ok(text.includes('superseded'));
 });

@@ -24,7 +24,9 @@ An official report may be generated only when the order is clinically complete. 
 
 ## Snapshot and PDF
 
-At issuance the server freezes organization identity/contact fields that already exist, patient demographics that already exist, order/specimen identifiers, and each current clinically verified result (value, unit, method, frozen range display, flag, verification metadata, amendment marker). Later patient, catalogue, reference-range, organization or result changes do not rewrite issued snapshots.
+At issuance the server freezes organization identity/contact fields that already exist, patient demographics that already exist, order/specimen identifiers, issuance identity (report number, version, issued timestamp, issuer name), and each current clinically verified result (value, unit, method, frozen range display, flag, frozen flag display, verification metadata, amendment marker). Later patient, catalogue, reference-range, organization, specimen or result changes do not rewrite issued snapshots.
+
+The clinical representation of an issued report is reproduced exclusively from `lab_reports.snapshot`. PDF rendering, report-list patient/order labels and official download do not read the current state of `patients`, `lab_orders`, catalogue records, reference ranges, specimens or results. Live tables are used only to *create* a new snapshot at issuance, or to decide whether a newer official version is eligible. Snapshots issued before issuance identity was frozen still render with report-row fallback for number, version, timestamp and issuer name.
 
 PDFs are generated on demand from that snapshot with `pdfkit`. No object-storage path is exposed. `GET /api/lab-reports/:id/pdf` is authenticated, organization-scoped and returns `application/pdf`.
 
