@@ -12,7 +12,7 @@ Units are a small organization-owned table (`mg/dL`, `mmol/L`, and similar labor
 
 Result types currently allowed are `NUMERIC`, `TEXT`, `BOOLEAN` and `CATEGORICAL`. Microbiology, panels and calculated tests are deferred; they will be added by migration when those workflows exist. Numeric tests require a unit.
 
-`base_price` is an optional numeric list price on the test. No invoices, payments or billing workflows are implemented.
+`base_price` is an optional numeric list price on the test. Phase 8 invoices use the price snapshot stored on the ordered test at order time, not a later catalogue change. See [lab-billing.md](lab-billing.md).
 
 ## Reference ranges and versioning
 Ranges are a dedicated table. One test may have several current ranges (for example adult male and adult female hemoglobin). Conditions supported now are sex (`ANY` / `MALE` / `FEMALE`) and age min/max with `YEARS` / `MONTHS` / `DAYS`. Pregnancy, diagnosis, ethnicity, medication and genetic rules are not implemented; additional columns can be added later without rewriting stored ranges.

@@ -1,6 +1,6 @@
 # Laboratory orders and specimens — Phase 4
 
-Phase 4 adds organization-scoped laboratory orders, catalogue snapshots at order time, specimen collection/accessioning, and an explicit specimen ↔ ordered-test relationship. Results, validation, reports, billing and analyzers remain out of scope.
+Phase 4 adds organization-scoped laboratory orders, catalogue snapshots at order time, specimen collection/accessioning, and an explicit specimen ↔ ordered-test relationship. Results, validation and reports were later phases. Laboratory billing in Phase 8 reads those ordered-test price snapshots; see [lab-billing.md](lab-billing.md). Analyzers remain out of scope.
 
 ## Schema
 
@@ -120,4 +120,4 @@ Organization, actors, order numbers and accession numbers cannot be mass-assigne
 
 ## Known limitations
 
-No PDF reports, billing, analyzers, HL7/FHIR, barcode hardware, label printers, panels, configurable specimen catalogues, aliquots, microbiology/pathology workflows or AI. Overlapping collection of the same test is blocked while a collected/received specimen already covers it; a rejected specimen can be replaced. STAT priority is not implemented. Doctors can read orders and results in Phase 5. Official reports are in [lab-reports.md](lab-reports.md).
+No analyzers, HL7/FHIR, barcode hardware, label printers, panels, configurable specimen catalogues, aliquots, microbiology/pathology workflows or AI. Overlapping collection of the same test is blocked while a collected/received specimen already covers it; a rejected specimen can be replaced. STAT priority is not implemented. Doctors can read orders and results in Phase 5. Official reports are in [lab-reports.md](lab-reports.md). Laboratory invoicing is in [lab-billing.md](lab-billing.md).

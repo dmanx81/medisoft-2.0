@@ -27,6 +27,15 @@ void test('roles deny privileges by default and permit only named grants', () =>
   for (const role of roles) assert.equal(can(role, 'dashboard:read'), true);
   assert.equal(can('RECEPTIONIST', 'results:read'), false);
   assert.equal(can('LAB_TECHNICIAN', 'billing:read'), false);
+  assert.equal(can('RECEPTIONIST', 'billing:create'), true);
+  assert.equal(can('RECEPTIONIST', 'billing:issue'), true);
+  assert.equal(can('RECEPTIONIST', 'billing:payment-record'), true);
+  assert.equal(can('RECEPTIONIST', 'billing:cancel'), false);
+  assert.equal(can('BIOCHEMIST', 'billing:read'), true);
+  assert.equal(can('BIOCHEMIST', 'billing:create'), false);
+  assert.equal(can('BIOCHEMIST', 'billing:issue'), false);
+  assert.equal(can('DOCTOR', 'billing:read'), false);
+  assert.equal(can('VIEWER', 'billing:read'), false);
   assert.equal(can('DOCTOR', 'users:read'), false);
   assert.equal(can('RECEPTIONIST', 'tests:read'), true);
   assert.equal(can('RECEPTIONIST', 'tests:edit'), false);

@@ -64,4 +64,4 @@ Completed orders show a completion badge. Authorized users can issue a report, d
 
 ## Known limitations
 
-No HL7/FHIR, analyzer import, patient portal, email/SMS sending, e-signature/PKI, QR verification, billing, inventory, QC or AI interpretation. Public report links are implemented in Phase 7; see [lab-report-sharing.md](lab-report-sharing.md).
+No HL7/FHIR, analyzer import, patient portal, email/SMS sending, e-signature/PKI, QR verification, inventory, QC or AI interpretation. Public report links are implemented in Phase 7; see [lab-report-sharing.md](lab-report-sharing.md). Laboratory invoicing is implemented in Phase 8; see [lab-billing.md](lab-billing.md).

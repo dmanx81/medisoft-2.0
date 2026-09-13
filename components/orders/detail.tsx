@@ -17,6 +17,8 @@ import {
 import { resultActivityLabels } from '@/features/results/format';
 import { reportActivityLabels } from '@/features/reports/format';
 import { ReportPanel } from '@/components/reports/panel';
+import { BillingPanel } from '@/components/billing/panel';
+import { invoiceActivityLabels } from '@/features/billing/format';
 import { specimenLabels } from '@/features/catalogue/format';
 type Failure = { code?: string; message?: string; fields?: Record<string, string> };
 function currentResultId(order: LabOrder, testId: string) {
@@ -45,6 +47,10 @@ export function OrderDetail({
   canDeliverReports = false,
   canShareReports = false,
   canRevokeReportShares = false,
+  canReadBilling = false,
+  canCreateBilling = false,
+  canIssueBilling = false,
+  canRecordPayments = false,
 }: {
   initial: LabOrder;
   activity: LabOrderActivity[];
@@ -65,6 +71,10 @@ export function OrderDetail({
   canDeliverReports?: boolean;
   canShareReports?: boolean;
   canRevokeReportShares?: boolean;
+  canReadBilling?: boolean;
+  canCreateBilling?: boolean;
+  canIssueBilling?: boolean;
+  canRecordPayments?: boolean;
 }) {
   const [order, setOrder] = useState(initial);
   const [activity, setActivity] = useState(initialActivity);
@@ -475,6 +485,25 @@ export function OrderDetail({
         }}
         onFailure={setFailure}
       />
+      <BillingPanel
+        orderId={order.id}
+        orderVersion={order.version}
+        canRead={canReadBilling}
+        canCreate={canCreateBilling}
+        canIssue={canIssueBilling}
+        canPay={canRecordPayments}
+        busy={busy}
+        onFailure={setFailure}
+        onBusy={setBusy}
+        onActivity={() => {
+          void fetch(`/api/lab-orders/${order.id}/activity`).then(
+            async (events) => {
+              if (events.ok)
+                setActivity((await events.json()) as LabOrderActivity[]);
+            },
+          );
+        }}
+      />
       {(canPlace && order.status === 'DRAFT') ||
       (canCancel && (order.status === 'DRAFT' || order.status === 'ORDERED')) ? (
         <section className="flex flex-wrap items-end gap-3 rounded-md border border-line bg-white p-5">
@@ -530,6 +559,7 @@ export function OrderDetail({
                 {orderActivityLabels[event.action] ||
                   resultActivityLabels[event.action] ||
                   reportActivityLabels[event.action] ||
+                  invoiceActivityLabels[event.action] ||
                   event.action}
               </span>
               <span className="text-slate">
