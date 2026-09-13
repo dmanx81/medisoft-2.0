@@ -2,7 +2,13 @@ import type { QueryRunner } from '@/lib/db/query';
 import { can, type Permission, type Principal } from '@/lib/auth/permissions';
 import { getOrder } from '@/features/orders/repository';
 import { OrderError } from '@/features/orders/types';
-import { calculateInvoiceTotals, parseMoney, formatMoney, type DiscountType } from './money';
+import {
+  calculateInvoiceTotals,
+  parseMoney,
+  formatMoney,
+  ZERO_CENTS,
+  type DiscountType,
+} from './money';
 import { renderInvoicePdf } from './pdf';
 import { buildInvoiceSnapshot, invoiceFromSnapshot, loadBillableLines } from './snapshot';
 import {
@@ -17,7 +23,6 @@ import {
 } from './validation';
 import {
   BillingError,
-  type BillableLine,
   type InvoiceContext,
   type InvoiceWorkItem,
   type LabInvoice,
@@ -199,7 +204,7 @@ async function allocateInvoiceNumber(db: QueryRunner, organizationId: string) {
 }
 function paymentStatus(total: string, paid: string) {
   if (parseMoney(paid) === parseMoney(total)) return 'PAID';
-  if (parseMoney(paid) === 0n) return 'ISSUED';
+  if (parseMoney(paid) === ZERO_CENTS) return 'ISSUED';
   return 'PARTIALLY_PAID';
 }
 async function requireOrder(db: QueryRunner, principal: Principal, orderId: string) {
@@ -593,7 +598,7 @@ export async function cancelInvoice(
         'INVOICE_NOT_CANCELLABLE',
         'Only unpaid draft or issued invoices can be cancelled.',
       );
-    if (parseMoney(locked.amount_paid) !== 0n)
+    if (parseMoney(locked.amount_paid) !== ZERO_CENTS)
       throw new BillingError(
         409,
         'INVOICE_HAS_PAYMENTS',
@@ -663,7 +668,7 @@ export async function recordPayment(
         'Payments can only be recorded against an issued unpaid invoice.',
       );
     const amount = parseMoney(parsed.data.amount);
-    if (amount <= 0n)
+    if (amount <= ZERO_CENTS)
       throw new BillingError(
         400,
         'VALIDATION',

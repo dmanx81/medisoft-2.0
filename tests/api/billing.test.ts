@@ -210,16 +210,37 @@ void test('billing API enforces origin, tenant scope, derived payment status and
     const issued = (await issuedResponse.json()) as LabInvoice;
     assert.equal(issued.status, 'ISSUED');
     assert.match(issued.invoice_number, /^INV-/);
+    principal = users[0];
+    const cancelledDenied = await cancelRoute.POST(
+      request('POST', { reason: 'test', version: issued.version }),
+      { params: Promise.resolve({ id: issued.id }) },
+    );
+    assert.equal(cancelledDenied.status, 200);
+    const cancelled = (await cancelledDenied.json()) as LabInvoice;
+    assert.equal(cancelled.status, 'CANCELLED');
+    const replacement = await orderInvoicesRoute.POST(
+      request('POST', {}),
+      orderContext,
+    );
+    assert.equal(replacement.status, 200);
+    const replacementDraft = (await replacement.json()) as LabInvoice;
+    principal = { ...users[0], role: 'RECEPTIONIST' };
+    const issuedResponse2 = await issueRoute.POST(
+      request('POST', { version: replacementDraft.version }),
+      { params: Promise.resolve({ id: replacementDraft.id }) },
+    );
+    assert.equal(issuedResponse2.status, 200);
+    const issued2 = (await issuedResponse2.json()) as LabInvoice;
     assert.equal(
       (
-        await issueRoute.POST(request('POST', { version: issued.version }), {
-          params: Promise.resolve({ id: issued.id }),
+        await issueRoute.POST(request('POST', { version: issued2.version }), {
+          params: Promise.resolve({ id: issued2.id }),
         })
       ).status,
       409,
     );
     const pdf = await pdfRoute.GET(request('GET'), {
-      params: Promise.resolve({ id: issued.id }),
+      params: Promise.resolve({ id: issued2.id }),
     });
     assert.equal(pdf.status, 200);
     assert.equal(pdf.headers.get('content-type'), 'application/pdf');
@@ -230,10 +251,10 @@ void test('billing API enforces origin, tenant scope, derived payment status and
         method: 'CASH',
         reference: 'front-desk',
         notes: '',
-        version: issued.version,
+        version: issued2.version,
       }),
-      { params: Promise.resolve({ id: issued.id }) },
-    );
+      { params: Promise.resolve({ id: issued2.id }),
+    });
     assert.equal(partial.status, 200);
     assert.equal(((await partial.json()) as LabInvoice).status, 'PARTIALLY_PAID');
     const overpay = await paymentsRoute.POST(
@@ -242,24 +263,24 @@ void test('billing API enforces origin, tenant scope, derived payment status and
         method: 'CASH',
         reference: '',
         notes: '',
-        version: issued.version + 1,
+        version: issued2.version + 1,
       }),
-      { params: Promise.resolve({ id: issued.id }) },
-    );
+      { params: Promise.resolve({ id: issued2.id }),
+    });
     assert.equal(overpay.status, 409);
     assert.equal(((await overpay.json()) as { code: string }).code, 'PAYMENT_EXCEEDS_BALANCE');
     principal = users[1];
     assert.equal(
       (
         await invoiceRoute.GET(request('GET'), {
-          params: Promise.resolve({ id: issued.id }),
+          params: Promise.resolve({ id: issued2.id }),
         })
       ).status,
       404,
     );
     principal = { ...users[0], role: 'RECEPTIONIST' };
     const search = await searchRoute.POST(
-      request('POST', { query: issued.invoice_number }),
+      request('POST', { query: issued2.invoice_number }),
     );
     assert.equal(((await search.json()) as { total: number }).total, 1);
     assert.equal(orderInvoicesRoute.DELETE().status, 405);
@@ -269,7 +290,7 @@ void test('billing API enforces origin, tenant scope, derived payment status and
     assert.equal(
       (
         await pdfRoute.GET(request('GET'), {
-          params: Promise.resolve({ id: issued.id }),
+          params: Promise.resolve({ id: issued2.id }),
         })
       ).status,
       401,

@@ -211,16 +211,17 @@ void test('invoice totals use exact cents and documented rounding', () => {
   assert.equal(totals.tax_total, '2.70');
   assert.equal(totals.total, '16.20');
   assert.equal(formatMoney(parseMoney('1.2')), '1.20');
-  assert.equal(percentOf(125n, '0.50'), 1n);
+  assert.equal(percentOf(BigInt(125), '0.50'), BigInt(1));
 });
 
 void test('draft invoices bill active order-test snapshots and exclude cancelled tests', async () => {
   const { db, a, patientA, gluA, altA } = await fixture();
   try {
     const order = await orderWithTests(db, a, patientA.id, [gluA.id, altA.id]);
+    const altTest = order.tests.find((test) => test.code_snapshot === 'ALT');
     await db.query(
       "UPDATE lab_order_tests SET status='CANCELLED' WHERE organization_id=$1 AND id=$2",
-      [a.organizationId, order.tests[1].id],
+      [a.organizationId, altTest!.id],
     );
     const created = await createInvoice(db, a, order.id, {});
     assert.equal(created.status, 'DRAFT');
@@ -262,8 +263,10 @@ void test('issue freezes snapshot, numbering, discounts and payments without rew
     assert.match(issued.invoice_number, /^INV-20[0-9]{2}-000001$/);
     const snapshot = loadSnapshot(issued);
     assert.equal(snapshot.patient.first_name, 'John');
-    assert.equal(snapshot.lines[0].name, 'Glucose');
-    assert.equal(snapshot.lines[0].unit_price, '8.00');
+    const gluLine = (lines: LabInvoiceSnapshot['lines']) =>
+      lines.find((line) => line.code === 'GLU');
+    assert.equal(gluLine(snapshot.lines)?.name, 'Glucose');
+    assert.equal(gluLine(snapshot.lines)?.unit_price, '8.00');
     assert.equal(snapshot.organization.name, 'a');
     await assert.rejects(
       issueInvoice(db, a, issued.id, { version: issued.version }),
@@ -288,8 +291,8 @@ void test('issue freezes snapshot, numbering, discounts and payments without rew
     const frozenSnapshot = loadSnapshot(frozen);
     assert.equal(frozenSnapshot.patient.first_name, 'John');
     assert.equal(frozenSnapshot.patient.last_name, 'Test');
-    assert.equal(frozenSnapshot.lines[0].name, 'Glucose');
-    assert.equal(frozenSnapshot.lines[0].unit_price, '8.00');
+    assert.equal(gluLine(frozenSnapshot.lines)?.name, 'Glucose');
+    assert.equal(gluLine(frozenSnapshot.lines)?.unit_price, '8.00');
     assert.equal(frozenSnapshot.organization.name, 'a');
     assert.equal(frozen.total, '12.00');
     const listed = await listInvoiceWork(db, a, { query: 'John' });

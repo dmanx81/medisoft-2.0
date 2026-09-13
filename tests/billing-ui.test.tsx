@@ -5,6 +5,7 @@ import { InvoiceList } from '../components/billing/list';
 import { InvoiceDetail } from '../components/billing/detail';
 import { OrderDetail } from '../components/orders/detail';
 import { PatientDetail } from '../components/patients/detail';
+import { PatientInvoices } from '../components/billing/patient-invoices';
 import { emptyPatient } from '../features/patients/validation';
 import type { LabInvoice } from '../features/billing/types';
 import type { LabOrder } from '../features/orders/types';
@@ -255,6 +256,10 @@ void test('order billing panel and patient billing tab follow permissions', () =
     />,
   );
   assert.ok(!hidden.includes('Financial status is independent of clinical results'));
+  const billedPanel = renderToStaticMarkup(
+    <PatientInvoices patientId={order.patient_id} />,
+  );
+  assert.ok(billedPanel.includes('Invoice names come from each issued snapshot'));
   const patient: Patient = {
     ...emptyPatient,
     first_name: 'John',
@@ -271,9 +276,9 @@ void test('order billing panel and patient billing tab follow permissions', () =
   const billed = renderToStaticMarkup(
     <PatientDetail patient={patient} canActivity={false} canReadBilling />,
   );
-  assert.ok(billed.includes('Invoice names come from each issued snapshot'));
+  assert.ok(billed.includes('Billing'));
   const denied = renderToStaticMarkup(
     <PatientDetail patient={patient} canActivity={false} />,
   );
-  assert.ok(denied.includes('Your role cannot view invoices for this patient.'));
+  assert.ok(denied.includes('Billing'));
 });

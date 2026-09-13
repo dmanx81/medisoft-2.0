@@ -164,18 +164,20 @@ export function BillingPanel({
             }}
           >
             <h3 className="font-medium">Record payment</h3>
-            <label className="text-sm font-medium">
+            <label className="text-sm font-medium" htmlFor="order-payment-amount">
               Amount
               <Input
+                id="order-payment-amount"
                 className="mt-2"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 required
               />
             </label>
-            <label className="text-sm font-medium">
+            <label className="text-sm font-medium" htmlFor="order-payment-method">
               Method
               <NativeSelect
+                id="order-payment-method"
                 className="mt-2 h-9"
                 value={method}
                 onChange={(event) => setMethod(event.target.value)}
@@ -187,9 +189,10 @@ export function BillingPanel({
                 ))}
               </NativeSelect>
             </label>
-            <label className="text-sm font-medium">
+            <label className="text-sm font-medium" htmlFor="order-payment-reference">
               Reference
               <Input
+                id="order-payment-reference"
                 className="mt-2"
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}

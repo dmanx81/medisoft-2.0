@@ -15,7 +15,7 @@ import {
   paymentMethodLabels,
 } from '@/features/billing/format';
 import { stampLabel } from '@/features/orders/format';
-import { parseMoney } from '@/features/billing/money';
+import { parseMoney, ZERO_CENTS } from '@/features/billing/money';
 type Failure = { code?: string; message?: string; fields?: Record<string, string> };
 function snapshotOf(invoice: LabInvoice): LabInvoiceSnapshot | null {
   const snapshot = invoice.snapshot as LabInvoiceSnapshot;
@@ -55,7 +55,7 @@ export function InvoiceDetail({
     invoice.status === 'ISSUED' || invoice.status === 'PARTIALLY_PAID';
   const cancellable =
     (invoice.status === 'DRAFT' || invoice.status === 'ISSUED') &&
-    parseMoney(invoice.amount_paid) === 0n;
+    parseMoney(invoice.amount_paid) === ZERO_CENTS;
   async function send(path: string, methodName: string, body: unknown) {
     setBusy(true);
     setFailure(null);
@@ -202,9 +202,10 @@ export function InvoiceDetail({
           }}
         >
           <h2 className="font-semibold">Draft financial values</h2>
-          <label className="text-sm font-medium">
+          <label className="text-sm font-medium" htmlFor="invoice-discount-type">
             Discount
             <NativeSelect
+              id="invoice-discount-type"
               className="mt-2 h-9"
               value={discountType}
               onChange={(event) =>
@@ -221,26 +222,29 @@ export function InvoiceDetail({
             </NativeSelect>
           </label>
           {discountType !== 'NONE' && (
-            <label className="text-sm font-medium">
+            <label className="text-sm font-medium" htmlFor="invoice-discount-value">
               Discount value
               <Input
+                id="invoice-discount-value"
                 className="mt-2"
                 value={discountValue}
                 onChange={(event) => setDiscountValue(event.target.value)}
               />
             </label>
           )}
-          <label className="text-sm font-medium">
+          <label className="text-sm font-medium" htmlFor="invoice-tax-rate">
             Tax rate (%)
             <Input
+              id="invoice-tax-rate"
               className="mt-2"
               value={taxRate}
               onChange={(event) => setTaxRate(event.target.value)}
             />
           </label>
-          <label className="text-sm font-medium">
+          <label className="text-sm font-medium" htmlFor="invoice-notes">
             Invoice note
             <Input
+              id="invoice-notes"
               className="mt-2"
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
@@ -312,18 +316,20 @@ export function InvoiceDetail({
             }}
           >
             <h3 className="font-medium">Record payment</h3>
-            <label className="text-sm font-medium">
+            <label className="text-sm font-medium" htmlFor="payment-amount">
               Amount
               <Input
+                id="payment-amount"
                 className="mt-2"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 required
               />
             </label>
-            <label className="text-sm font-medium">
+            <label className="text-sm font-medium" htmlFor="payment-method">
               Method
               <NativeSelect
+                id="payment-method"
                 className="mt-2 h-9"
                 value={method}
                 onChange={(event) => setMethod(event.target.value)}
@@ -335,17 +341,19 @@ export function InvoiceDetail({
                 ))}
               </NativeSelect>
             </label>
-            <label className="text-sm font-medium">
+            <label className="text-sm font-medium" htmlFor="payment-reference">
               Reference
               <Input
+                id="payment-reference"
                 className="mt-2"
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
               />
             </label>
-            <label className="text-sm font-medium">
+            <label className="text-sm font-medium" htmlFor="payment-notes">
               Notes
               <Input
+                id="payment-notes"
                 className="mt-2"
                 value={paymentNotes}
                 onChange={(event) => setPaymentNotes(event.target.value)}

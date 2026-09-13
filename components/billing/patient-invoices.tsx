@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { InvoiceWorkItem } from '@/features/billing/types';
 import { invoiceStatusLabels, moneyLabel } from '@/features/billing/format';
-import { formatMoney, parseMoney } from '@/features/billing/money';
+import { formatMoney, parseMoney, ZERO_CENTS } from '@/features/billing/money';
 import { stampLabel } from '@/features/orders/format';
 export function PatientInvoices({ patientId }: { patientId: string }) {
   const [invoices, setInvoices] = useState<InvoiceWorkItem[] | null>(null);
@@ -34,7 +34,7 @@ export function PatientInvoices({ patientId }: { patientId: string }) {
       if (invoice.status === 'CANCELLED' || invoice.status === 'DRAFT')
         return sum;
       return sum + parseMoney(invoice.balance_due);
-    }, 0n),
+    }, ZERO_CENTS),
   );
   return (
     <div className="rounded-md border border-line bg-white p-5">

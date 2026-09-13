@@ -1,20 +1,25 @@
 const moneyPattern = /^\d+(?:\.\d{1,2})?$/;
 const signedMoneyPattern = /^-?\d+(?:\.\d{1,2})?$/;
+export const ZERO_CENTS = BigInt(0);
+const CENTS = BigInt(100);
+const TWO = BigInt(2);
+const NEGATIVE = BigInt(-1);
+const PERCENT_SCALE = BigInt(10000);
 
 export function parseMoney(value: string): bigint {
   if (!signedMoneyPattern.test(value))
     throw new Error('Enter an amount with up to two decimals.');
   const negative = value.startsWith('-');
   const [whole, fraction = ''] = (negative ? value.slice(1) : value).split('.');
-  const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2));
+  const cents = BigInt(whole) * CENTS + BigInt(fraction.padEnd(2, '0').slice(0, 2));
   return negative ? -cents : cents;
 }
 
 export function formatMoney(cents: bigint): string {
-  const negative = cents < 0n;
+  const negative = cents < ZERO_CENTS;
   const absolute = negative ? -cents : cents;
-  const whole = absolute / 100n;
-  const fraction = (absolute % 100n).toString().padStart(2, '0');
+  const whole = absolute / CENTS;
+  const fraction = (absolute % CENTS).toString().padStart(2, '0');
   return `${negative ? '-' : ''}${whole.toString()}.${fraction}`;
 }
 
@@ -23,19 +28,19 @@ export function isMoney(value: string) {
 }
 
 export function roundRatio(amount: bigint, numerator: bigint, denominator: bigint): bigint {
-  if (denominator === 0n) throw new Error('Invalid financial ratio.');
+  if (denominator === ZERO_CENTS) throw new Error('Invalid financial ratio.');
   const product = amount * numerator;
-  const sign = product < 0n ? -1n : 1n;
-  const absolute = product < 0n ? -product : product;
+  const sign = product < ZERO_CENTS ? NEGATIVE : BigInt(1);
+  const absolute = product < ZERO_CENTS ? -product : product;
   const remainder = absolute % denominator;
   const quotient = absolute / denominator;
-  return sign * (remainder * 2n >= denominator ? quotient + 1n : quotient);
+  return sign * (remainder * TWO >= denominator ? quotient + BigInt(1) : quotient);
 }
 
 export function percentOf(amount: bigint, percent: string): bigint {
   if (!moneyPattern.test(percent))
     throw new Error('Enter a percentage with up to two decimals.');
-  return roundRatio(amount, parseMoney(percent), 10000n);
+  return roundRatio(amount, parseMoney(percent), PERCENT_SCALE);
 }
 
 export type DiscountType = 'NONE' | 'PERCENT' | 'FIXED';
@@ -73,22 +78,22 @@ export function calculateInvoiceTotals(input: {
   const lines = input.lines.map((line) => {
     const quantity = parseMoney(line.quantity);
     const unit = parseMoney(line.unit_price);
-    const lineSubtotal = roundRatio(quantity, unit, 100n);
+    const lineSubtotal = roundRatio(quantity, unit, CENTS);
     return {
       ...line,
       quantity: formatMoney(quantity),
       unit_price: formatMoney(unit),
       line_subtotal: formatMoney(lineSubtotal),
-      discount: formatMoney(0n),
-      tax: formatMoney(0n),
+      discount: formatMoney(ZERO_CENTS),
+      tax: formatMoney(ZERO_CENTS),
       line_total: formatMoney(lineSubtotal),
     };
   });
   const subtotal = lines.reduce(
     (sum, line) => sum + parseMoney(line.line_subtotal),
-    0n,
+    ZERO_CENTS,
   );
-  let discount = 0n;
+  let discount = ZERO_CENTS;
   if (input.discount_type === 'PERCENT')
     discount = percentOf(subtotal, input.discount_value);
   else if (input.discount_type === 'FIXED')
