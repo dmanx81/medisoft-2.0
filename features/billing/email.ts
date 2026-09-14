@@ -20,6 +20,15 @@ export interface BillingEmailProvider {
   send(message: BillingEmailMessage): Promise<BillingEmailResult>;
 }
 
+export class BillingEmailError extends Error {
+  constructor(
+    public code: 'EMAIL_DISABLED' | 'EMAIL_UNAVAILABLE',
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 export class StubBillingEmailProvider implements BillingEmailProvider {
   readonly sent: BillingEmailMessage[] = [];
   async send(message: BillingEmailMessage): Promise<BillingEmailResult> {
@@ -28,6 +37,15 @@ export class StubBillingEmailProvider implements BillingEmailProvider {
       provider: 'stub',
       messageId: `stub-${String(this.sent.length).padStart(6, '0')}`,
     };
+  }
+}
+
+export class DisabledBillingEmailProvider implements BillingEmailProvider {
+  async send(): Promise<BillingEmailResult> {
+    throw new BillingEmailError(
+      'EMAIL_DISABLED',
+      'Invoice email is disabled on this server.',
+    );
   }
 }
 

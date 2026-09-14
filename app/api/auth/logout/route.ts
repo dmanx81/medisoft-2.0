@@ -4,6 +4,8 @@ import { database } from '@/lib/db';
 import { environment } from '@/lib/env';
 import { validOrigin } from '@/lib/validation';
 import { revokeSession } from '@/lib/auth/transactions';
+import { sessionCookieOptions } from '@/lib/http/cookies';
+import { logUnexpectedFailure } from '@/lib/log';
 export async function POST(request: Request) {
   try {
     const config = environment();
@@ -22,15 +24,15 @@ export async function POST(request: Request) {
       new URL('/login', config.APP_ORIGIN),
       303,
     );
-    response.cookies.set(sessionCookie, '', {
-      httpOnly: true,
-      secure: config.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 0,
-    });
+    response.cookies.set(
+      sessionCookie,
+      '',
+      sessionCookieOptions(config.NODE_ENV === 'production', 0),
+    );
+    response.headers.set('Cache-Control', 'private, no-store');
     return response;
   } catch {
+    logUnexpectedFailure('auth-logout');
     return new Response('Sign-out could not complete. Please try again.', {
       status: 503,
     });

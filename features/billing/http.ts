@@ -5,6 +5,7 @@ import { validOrigin } from '@/lib/validation';
 import { environment } from '@/lib/env';
 import { OrderError } from '@/features/orders/types';
 import { BillingError } from './types';
+import { logUnexpectedFailure } from '@/lib/log';
 export async function billingApi(
   request: Request,
   permission: Permission,
@@ -40,6 +41,7 @@ export async function billingApi(
         },
         error.status,
       );
+    logUnexpectedFailure('billing');
     return reply(
       {
         code: 'UNAVAILABLE',
@@ -87,6 +89,7 @@ export async function billingPdfApi(
         },
         error.status,
       );
+    logUnexpectedFailure('billing');
     return reply(
       {
         code: 'UNAVAILABLE',

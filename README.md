@@ -50,9 +50,9 @@ docker compose config --quiet
 docker compose up -d --build app
 ```
 
-Keep ports bound to localhost behind the existing HTTPS reverse proxy. Give runtime credentials SELECT/INSERT/UPDATE on organizations/users as needed, SELECT/INSERT/DELETE on sessions, SELECT/INSERT/UPDATE on login_limits, and INSERT/SELECT only on audit_events; no schema ownership, DDL, audit mutation or truncate privileges. Grant the same SELECT/INSERT/UPDATE pattern on patients, patient_counters, lab_test_categories, lab_units, lab_tests, lab_reference_ranges, lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests, lab_order_counters, lab_accession_counters, lab_results, lab_reports, lab_report_deliveries, lab_report_shares, lab_invoices and lab_invoice_counters. Grant SELECT/INSERT/DELETE on lab_report_share_sessions. Grant SELECT/INSERT/UPDATE on share_access_limits. Grant INSERT/SELECT on lab_invoice_payments. Grant DELETE on `lab_order_tests` only (draft test removal before an order is placed). Do not grant DELETE on `lab_report_shares`, `lab_invoices` or `lab_invoice_payments`. Do not grant DELETE/TRUNCATE on patient, catalogue, order or specimen tables otherwise. Rehearse encrypted backups and restores. Never delete the named volume during upgrades. Back up before migrations; applied migrations have checksums and must not be edited.
+Keep ports bound to localhost behind the existing HTTPS reverse proxy. Give runtime credentials SELECT/INSERT/UPDATE on organizations/users as needed, SELECT/INSERT/DELETE on sessions, SELECT/INSERT/UPDATE on login_limits, and INSERT/SELECT only on audit_events; no schema ownership, DDL, audit mutation or truncate privileges. Grant the same SELECT/INSERT/UPDATE pattern on patients, patient_counters, lab_test_categories, lab_units, lab_tests, lab_reference_ranges, lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests, lab_order_counters, lab_accession_counters, lab_results, lab_reports, lab_report_deliveries, lab_report_shares, lab_invoices, lab_invoice_counters, lab_credit_notes and lab_credit_note_counters. Grant SELECT/INSERT/DELETE on lab_report_share_sessions. Grant SELECT/INSERT/UPDATE on share_access_limits. Grant INSERT/SELECT on lab_invoice_payments, lab_invoice_payment_reversals and lab_invoice_deliveries. Grant DELETE on `lab_order_tests` only (draft test removal before an order is placed). Do not grant DELETE on `lab_report_shares`, `lab_invoices`, `lab_invoice_payments`, `lab_invoice_payment_reversals`, `lab_credit_notes` or `lab_invoice_deliveries`. Do not grant DELETE/TRUNCATE on patient, catalogue, order or specimen tables otherwise. Rehearse encrypted backups and restores. Never delete the named volume during upgrades. Back up before migrations; applied migrations have checksums and must not be edited.
 
-Authentication uses database sessions with 8-hour expiry, HttpOnly cookies, production Secure cookies, origin checks and a shared 5-attempt/15-minute account throttle. A perimeter request-size and IP rate limit is also recommended before public rollout. Logs must never contain credentials, request bodies, patient records or session tokens. Expired session/throttle maintenance is an operator task; no raw/audit data cleanup is provided.
+Authentication uses database sessions with 8-hour expiry, HttpOnly cookies, production Secure cookies, origin checks and a shared 5-attempt/15-minute account throttle. A perimeter request-size and IP rate limit is also recommended before public rollout. Logs must never contain credentials, request bodies, patient records or session tokens. Expired session/throttle maintenance is an operator task; no raw/audit data cleanup is provided. Production operators should follow [operations](docs/operations.md).
 
 ## Scope
 
@@ -72,6 +72,7 @@ Organization/user/role schema, login/logout, protected shell, dashboard, module 
 
 **Phase 8:** laboratory invoices, frozen financial snapshots, PDFs and append-only payments are implemented. See [Laboratory billing](docs/lab-billing.md).
 **Phase 9:** payment reversals, credit notes, receipt PDFs, due dates, organization billing settings and manual invoice email are implemented on top of Phase 8. Analyzers remain future work.
+**Phase 10:** production configuration validation, security headers, health/readiness, SMTP or explicitly disabled email, backup/restore scripts and the operations runbook. No public-domain deployment. See [operations](docs/operations.md).
 
 Run HTTP boundary checks against a running server with `SMOKE_ORIGIN=http://localhost:3000 npm run test:http` (APP_ORIGIN must match). These verify every module redirect, public bilingual routes, origin checks, oversized form rejection and invalid credentials.
 
@@ -195,6 +196,20 @@ npm test
 npm run test:api
 SMOKE_ORIGIN=http://localhost:3000 npm run test:http
 npm run build
+npm run typecheck
+npm run lint
+```
+
+## Production readiness
+
+Phase 10 does not add clinical or billing features and does not deploy a public domain. Use existing migrations 001–009, production environment validation, and the [operations runbook](docs/operations.md).
+
+```sh
+node --env-file=.env.local --import tsx scripts/migrate.ts
+npm test
+npm run test:api
+SMOKE_ORIGIN=http://localhost:3000 npm run test:http
+npm run build:node
 npm run typecheck
 npm run lint
 ```

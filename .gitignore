@@ -28,6 +28,8 @@ yarn-error.log*
 
 # local environment
 .env*
+# operator backups written by scripts/backup.ts
+/backups/
 
 # deployment and generated files
 .vercel

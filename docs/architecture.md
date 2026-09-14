@@ -59,3 +59,11 @@ Issued reports can be shared through expiring, revocable bearer links plus an 8-
 
 ## Phase 8 — Laboratory billing
 Issued invoices freeze a financial snapshot at issuance, the same way reports freeze clinical content. Payments are append-only and change balance/status only. `features/billing` owns decimal-safe totals, snapshot construction, PDF rendering and permission-enforcing SQL. `008_billing.sql` adds invoice/payment tables plus organization currency and default tax rate. Clinical completion and reporting are independent of payment. See [lab-billing.md](lab-billing.md).
+
+## Phase 9 — Billing operations
+Payment reversals, credit notes, receipt PDFs, due dates, organization billing settings and manual invoice email sit on the Phase 8 ledger. Issued snapshots and original payment rows stay immutable. Email uses a provider-neutral interface (`features/billing/email.ts`). See [lab-billing.md](lab-billing.md).
+
+## Phase 10 — Production readiness
+Phase 10 does not add clinical or billing features and does not deploy a public domain. It hardens the existing Node + PostgreSQL runtime: fail-closed production configuration (`lib/env.ts`, `instrumentation.ts`), security headers (`proxy.ts`, `next.config.ts`), JSON logs (`lib/log.ts`), `/api/health` and `/api/ready`, SMTP or explicit disabled email, operator `pg_dump`/`pg_restore` scripts, and the [operations runbook](operations.md).
+
+Sessions remain opaque database tokens (no JWT secret). PDFs remain on-demand buffers; durable data is PostgreSQL plus host backups. Migration `010_production_readiness.sql` is added only if a live query plan requires it. Vinext/Sites remains unsupported for PostgreSQL production.

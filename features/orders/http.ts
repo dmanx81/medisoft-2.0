@@ -8,6 +8,7 @@ import { listResultsForOrder } from '@/features/results/repository';
 import { listReportsForOrder } from '@/features/reports/list';
 import { OrderError, type LabOrder } from './types';
 import { ResultError } from '@/features/results/types';
+import { logUnexpectedFailure } from '@/lib/log';
 import { ReportError } from '@/features/reports/types';
 export async function orderApi(
   request: Request,
@@ -48,6 +49,7 @@ export async function orderApi(
         },
         error.status,
       );
+    logUnexpectedFailure('orders');
     return reply(
       {
         code: 'UNAVAILABLE',

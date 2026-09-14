@@ -4,6 +4,8 @@ import { environment } from '@/lib/env';
 import { loginSchema, validOrigin } from '@/lib/validation';
 import { authenticate } from '@/lib/auth/transactions';
 import { sessionCookie } from '@/lib/auth/session';
+import { sessionCookieOptions } from '@/lib/http/cookies';
+import { logUnexpectedFailure } from '@/lib/log';
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
   try {
@@ -53,16 +55,15 @@ export async function POST(request: Request) {
       new URL('/app', config.APP_ORIGIN),
       303,
     );
-    response.cookies.set(sessionCookie, session.token, {
-      httpOnly: true,
-      secure: config.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 8 * 60 * 60,
-    });
-    response.headers.set('Cache-Control', 'no-store');
+    response.cookies.set(
+      sessionCookie,
+      session.token,
+      sessionCookieOptions(config.NODE_ENV === 'production', 8 * 60 * 60),
+    );
+    response.headers.set('Cache-Control', 'private, no-store');
     return response;
   } catch {
+    logUnexpectedFailure('auth-login');
     return new Response(
       'Sign-in is temporarily unavailable. Please try again later.',
       { status: 503 },
