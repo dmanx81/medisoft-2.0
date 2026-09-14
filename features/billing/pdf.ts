@@ -49,6 +49,9 @@ export function renderInvoicePdf(snapshot: LabInvoiceSnapshot): Promise<Buffer> 
       `Issued ${stamp(invoice.invoice.issued_at)} by ${invoice.invoice.issued_by_name || '—'}`,
     );
     doc.text(`Currency ${currency}`);
+    if (invoice.invoice.due_date) {
+      doc.text(`Due ${invoice.invoice.due_date}`);
+    }
     doc.moveDown(0.7);
     doc.fillColor('#17353A').fontSize(11).text('Customer');
     doc.fontSize(9);
@@ -121,6 +124,91 @@ export function renderInvoicePdf(snapshot: LabInvoiceSnapshot): Promise<Buffer> 
     doc.moveDown(1);
     doc.fontSize(8).fillColor('#5B6B70').text(
       'This document is the official issued invoice. Later payments change the balance, not these billed amounts.',
+    );
+    doc.end();
+  });
+}
+
+export function renderReceiptPdf(input: {
+  receiptId: string;
+  invoice: LabInvoiceSnapshot;
+  payment: {
+    amount: string;
+    currency: string;
+    method: string;
+    reference: string;
+    received_at: string;
+    recorded_by_name: string;
+  };
+  reversals: { amount: string; reason: string; created_at: string; recorded_by_name: string }[];
+}): Promise<Buffer> {
+  const invoice = invoiceFromSnapshot(input.invoice);
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 48,
+      bufferPages: true,
+      compress: false,
+      info: {
+        Title: `Receipt ${input.receiptId}`,
+        Author: invoice.organization.name,
+        Creator: 'MEDISOFT',
+        CreationDate: input.payment.received_at
+          ? new Date(input.payment.received_at)
+          : undefined,
+      },
+    });
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+    const currency = input.payment.currency;
+    doc.fillColor('#17353A').fontSize(16).text(invoice.organization.name || 'Laboratory');
+    doc.fontSize(9).fillColor('#5B6B70');
+    const contact = [
+      invoice.organization.address,
+      invoice.organization.phone,
+      invoice.organization.email,
+      invoice.organization.country,
+    ].filter(Boolean);
+    if (contact.length) doc.text(contact.join(' · '));
+    doc.moveDown(0.5);
+    doc.fillColor('#0F766E').fontSize(13).text('Payment receipt');
+    doc.moveDown(0.4);
+    doc.fillColor('#17353A').fontSize(10);
+    doc.text(`Receipt ${input.receiptId}`);
+    doc.fontSize(9).fillColor('#5B6B70');
+    doc.text(`Invoice ${invoice.invoice.invoice_number}`);
+    doc.text(`Received ${stamp(input.payment.received_at)} by ${input.payment.recorded_by_name || '—'}`);
+    doc.moveDown(0.7);
+    doc.fillColor('#17353A').fontSize(11).text('Customer');
+    doc.fontSize(9);
+    doc.text(
+      `${invoice.patient.last_name}, ${invoice.patient.first_name}  ·  ${invoice.patient.patient_number}`,
+    );
+    doc.moveDown(0.7);
+    doc.fillColor('#17353A').fontSize(11).text('Payment');
+    doc.fontSize(9).fillColor('#5B6B70');
+    doc.text(`Amount ${moneyLabel(input.payment.amount, currency)}`);
+    doc.text(`Method ${input.payment.method}`);
+    if (input.payment.reference) doc.text(`Reference ${input.payment.reference}`);
+    doc.text(`Currency ${currency}`);
+    if (input.reversals.length > 0) {
+      doc.moveDown(0.8);
+      doc.fillColor('#B45309').fontSize(11).text('Subsequent reversals');
+      doc.fontSize(9).fillColor('#5B6B70');
+      doc.text(
+        'This receipt records the original payment. Later reversals are listed here and do not rewrite the original payment.',
+      );
+      for (const reversal of input.reversals) {
+        doc.text(
+          `${moneyLabel(reversal.amount, currency)} on ${stamp(reversal.created_at)} by ${reversal.recorded_by_name || '—'} — ${reversal.reason}`,
+        );
+      }
+    }
+    doc.moveDown(1);
+    doc.fontSize(8).fillColor('#5B6B70').text(
+      'This receipt is generated from immutable payment and invoice snapshot data. Card numbers and secrets are never stored.',
     );
     doc.end();
   });

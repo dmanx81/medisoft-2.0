@@ -46,6 +46,11 @@ export const orderActivityLabels: Record<string, string> = {
   LAB_INVOICE_CANCELLED: 'Invoice cancelled',
   LAB_PAYMENT_RECORDED: 'Payment recorded',
   LAB_INVOICE_DOWNLOADED: 'Invoice PDF downloaded',
+  LAB_PAYMENT_REVERSED: 'Payment reversed',
+  LAB_CREDIT_NOTE_CREATED: 'Credit note draft created',
+  LAB_CREDIT_NOTE_ISSUED: 'Credit note issued',
+  LAB_RECEIPT_DOWNLOADED: 'Receipt PDF downloaded',
+  LAB_INVOICE_EMAILED: 'Invoice emailed',
 };
 export function stampLabel(value: string) {
   if (!value) return '—';

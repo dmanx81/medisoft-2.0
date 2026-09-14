@@ -40,6 +40,7 @@ async function fixture() {
     '006_lab_reports.sql',
     '007_report_sharing.sql',
     '008_billing.sql',
+    '009_billing_operations.sql',
   ])
     await db.exec(
       await readFile(
@@ -176,7 +177,7 @@ const liveMutableTables =
 function withoutLiveJoins(db: PGlite): QueryRunner {
   return {
     query(sql, values) {
-      if (liveMutableTables.test(sql) && /FROM|JOIN/i.test(sql) && !/lab_invoices|lab_invoice_payments|audit_events/i.test(sql))
+      if (liveMutableTables.test(sql) && /FROM|JOIN/i.test(sql) && !/lab_invoices|lab_invoice_payments|lab_invoice_payment_reversals|lab_credit_notes|lab_invoice_deliveries|audit_events/i.test(sql))
         throw new Error(`Live table read is not allowed: ${sql}`);
       return db.query(sql, values);
     },

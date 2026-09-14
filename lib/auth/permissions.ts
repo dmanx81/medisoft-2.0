@@ -40,6 +40,9 @@ export const permissions = [
   'billing:issue',
   'billing:payment-record',
   'billing:cancel',
+  'billing:correct',
+  'billing:settings',
+  'billing:email',
   'tests:read',
   'tests:create',
   'tests:edit',
@@ -65,6 +68,7 @@ const grants: Record<Role, readonly Permission[]> = {
     'billing:create',
     'billing:issue',
     'billing:payment-record',
+    'billing:email',
     'tests:read',
   ],
   LAB_TECHNICIAN: [

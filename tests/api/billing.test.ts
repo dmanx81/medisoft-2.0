@@ -64,6 +64,7 @@ void test('billing API enforces origin, tenant scope, derived payment status and
       '006_lab_reports.sql',
       '007_report_sharing.sql',
       '008_billing.sql',
+      '009_billing_operations.sql',
     ])
       await db.exec(
         await readFile(

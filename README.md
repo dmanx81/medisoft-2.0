@@ -56,7 +56,7 @@ Authentication uses database sessions with 8-hour expiry, HttpOnly cookies, prod
 
 ## Scope
 
-Organization/user/role schema, login/logout, protected shell, dashboard, module empty states, audit foundation and provider-neutral AI contracts are implemented. AI defaults off and no model calls exist. Patient CRM is implemented in Phase 2. The laboratory test catalogue and versioned reference ranges are implemented in Phase 3. Laboratory orders and specimen collection are implemented in Phase 4. Laboratory results, technical validation, clinical verification and amendments are implemented in Phase 5. Order completion, laboratory reports, PDF generation and delivery records are implemented in Phase 6. Secure patient report delivery and sharing are implemented in Phase 7. Laboratory billing, invoicing and manual payment recording are implemented in Phase 8. User management remains future work.
+Organization/user/role schema, login/logout, protected shell, dashboard, module empty states, audit foundation and provider-neutral AI contracts are implemented. AI defaults off and no model calls exist. Patient CRM is implemented in Phase 2. The laboratory test catalogue and versioned reference ranges are implemented in Phase 3. Laboratory orders and specimen collection are implemented in Phase 4. Laboratory results, technical validation, clinical verification and amendments are implemented in Phase 5. Order completion, laboratory reports, PDF generation and delivery records are implemented in Phase 6. Secure patient report delivery and sharing are implemented in Phase 7. Laboratory billing, invoicing and manual payment recording are implemented in Phase 8. Payment reversals, credit notes, receipt PDFs, due dates, billing settings and manual invoice email are implemented in Phase 9. User management remains future work.
 
 **Phase 2:** organization-scoped Patient CRM is implemented. See [Patient CRM](docs/patient-crm.md) for schema, permissions, duplicate handling, audit behavior and limitations.
 
@@ -70,7 +70,8 @@ Organization/user/role schema, login/logout, protected shell, dashboard, module 
 
 **Phase 7:** secure, expiring report shares, PIN verification and snapshot-only public PDFs are implemented. See [Laboratory report sharing](docs/lab-report-sharing.md).
 
-**Phase 8:** laboratory invoices, frozen financial snapshots, PDFs and append-only payments are implemented. See [Laboratory billing](docs/lab-billing.md). Analyzers remain future work.
+**Phase 8:** laboratory invoices, frozen financial snapshots, PDFs and append-only payments are implemented. See [Laboratory billing](docs/lab-billing.md).
+**Phase 9:** payment reversals, credit notes, receipt PDFs, due dates, organization billing settings and manual invoice email are implemented on top of Phase 8. Analyzers remain future work.
 
 Run HTTP boundary checks against a running server with `SMOKE_ORIGIN=http://localhost:3000 npm run test:http` (APP_ORIGIN must match). These verify every module redirect, public bilingual routes, origin checks, oversized form rejection and invalid credentials.
 
@@ -173,6 +174,20 @@ npm run lint
 ## Laboratory billing
 
 Apply migration 008 using the existing migration command. Migrations 001–007 have not changed. Sign in as a receptionist or administrator, open a laboratory order with active priced tests, create a draft invoice, optionally set discount/tax, issue it, then record payments from the order Billing panel or `/app/billing`. Issued PDFs and list labels use the frozen invoice snapshot. Doctors and technicians cannot access billing.
+
+```sh
+node --env-file=.env.local --import tsx scripts/migrate.ts
+npm test
+npm run test:api
+SMOKE_ORIGIN=http://localhost:3000 npm run test:http
+npm run build
+npm run typecheck
+npm run lint
+```
+
+## Laboratory billing operations
+
+Apply migration 009 using the existing migration command. Migrations 001–008 have not changed. Sign in as an administrator to reverse a payment, issue a credit note, change organization currency/tax, or download a receipt. Receptionists can still record payments and email the official invoice PDF, but cannot reverse payments, issue credit notes, or change billing defaults. Issued invoice snapshots and original payment rows stay unchanged.
 
 ```sh
 node --env-file=.env.local --import tsx scripts/migrate.ts

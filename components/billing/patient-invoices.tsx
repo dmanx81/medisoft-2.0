@@ -63,6 +63,7 @@ export function PatientInvoices({ patientId }: { patientId: string }) {
                   {invoiceStatusLabels[invoice.status]} ·{' '}
                   {moneyLabel(invoice.total, invoice.currency)} ·{' '}
                   {stampLabel(invoice.issued_at)}
+                  {invoice.overdue ? ' · Overdue' : ''}
                 </span>
               </li>
             ))}

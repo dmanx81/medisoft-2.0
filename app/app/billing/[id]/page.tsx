@@ -14,15 +14,21 @@ export default async function InvoicePage({
 }) {
   const user = await requireUser();
   if (!can(user.role, 'billing:read')) return <BillingAccessDenied />;
-  const { invoice, payments } = await invoiceForPage(user, (await params).id);
+  const { invoice, payments, reversals, credit_notes, deliveries } =
+    await invoiceForPage(user, (await params).id);
   return (
     <InvoiceDetail
       initial={invoice}
       payments={payments}
+      reversals={reversals}
+      creditNotes={credit_notes}
+      deliveries={deliveries}
       canIssue={can(user.role, 'billing:issue')}
       canPay={can(user.role, 'billing:payment-record')}
       canCancel={can(user.role, 'billing:cancel')}
       canEditDraft={can(user.role, 'billing:create')}
+      canCorrect={can(user.role, 'billing:correct')}
+      canEmail={can(user.role, 'billing:email')}
     />
   );
 }

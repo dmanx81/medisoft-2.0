@@ -108,6 +108,8 @@ export function BillingPanel({
             {moneyLabel(invoice.total, invoice.currency)} · Paid{' '}
             {moneyLabel(invoice.amount_paid, invoice.currency)} · Balance{' '}
             {moneyLabel(invoice.balance_due, invoice.currency)}
+            {invoice.overdue ? ' · Overdue' : ''}
+            {invoice.due_date ? ` · Due ${invoice.due_date}` : ''}
           </p>
           {invoice.status !== 'DRAFT' && (
             <a

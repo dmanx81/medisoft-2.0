@@ -33,6 +33,17 @@ void test('billing APIs deny unauthenticated requests and do not support hard de
     [`/api/lab-invoices/${id}/pdf`, 'GET'],
     [`/api/lab-invoices/${id}/payments`, 'GET'],
     [`/api/lab-invoices/${id}/payments`, 'POST'],
+    [`/api/lab-invoice-payments/${id}/reverse`, 'POST'],
+    [`/api/lab-invoice-payments/${id}/receipt`, 'GET'],
+    [`/api/lab-invoices/${id}/credit-notes`, 'GET'],
+    [`/api/lab-invoices/${id}/credit-notes`, 'POST'],
+    [`/api/lab-credit-notes/${id}`, 'GET'],
+    [`/api/lab-credit-notes/${id}/issue`, 'POST'],
+    [`/api/lab-invoices/${id}/email`, 'POST'],
+    [`/api/lab-invoices/${id}/deliveries`, 'GET'],
+    [`/api/lab-invoices/${id}/reversals`, 'GET'],
+    ['/api/organization/billing', 'GET'],
+    ['/api/organization/billing', 'PATCH'],
   ]) {
     const response: Response = await fetch(`${origin}${path}`, {
       method,
@@ -54,6 +65,10 @@ void test('billing APIs deny unauthenticated requests and do not support hard de
     `/api/lab-invoices/${id}`,
     `/api/lab-orders/${id}/invoices`,
     `/api/lab-invoices/${id}/payments`,
+    `/api/lab-invoice-payments/${id}/reverse`,
+    `/api/lab-invoices/${id}/credit-notes`,
+    `/api/lab-credit-notes/${id}`,
+    '/api/organization/billing',
   ]) {
     const response: Response = await fetch(`${origin}${path}`, {
       method: 'DELETE',
