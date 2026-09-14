@@ -69,4 +69,4 @@ Application rate limits are per token digest, not per IP. Place an IP request li
 
 ## Out of scope
 
-Patient accounts/portals, SMTP, SMS/WhatsApp, QR/PKI, permanent public URLs, HL7/FHIR, billing, and any change to Phase 6 snapshot or PDF architecture.
+Patient accounts/portals, SMTP, SMS/WhatsApp, QR/PKI, permanent public URLs, HL7/FHIR, and any change to Phase 6 snapshot or PDF architecture. Laboratory invoicing is implemented separately in Phase 8; see [lab-billing.md](lab-billing.md).

@@ -87,7 +87,7 @@ Append-only `audit_events` records `RESULT_ENTERED`, `RESULT_UPDATED`, `LAB_ORDE
 
 ## Known limitations
 
-Result entry, technical validation, clinical verification and amendments are implemented. Analyzer import, HL7/FHIR, patient portal, QC, billing and AI interpretation remain out of scope.
+Result entry, technical validation, clinical verification and amendments are implemented. Analyzer import, HL7/FHIR, patient portal, QC and AI interpretation remain out of scope. Laboratory invoicing is in [lab-billing.md](lab-billing.md).
 
 ## Phase 6
 

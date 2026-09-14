@@ -33,7 +33,7 @@ npm run test:api
 npm run build:node
 ```
 
-Tests use disposable PGlite databases (actual PostgreSQL engine, no external database needed). They cover role grants, validation, origin/session rejection, password hashing, organization isolation, composite foreign keys, session expiry/disabled users, audit immutability, Patient CRM, the laboratory catalogue, laboratory orders/specimens, laboratory results, laboratory reports and rendered dashboard structure. HTTP route-protection smoke checks should run against `npm run dev:node` or `npm run start:node`: anonymous `/app` and nested application URLs redirect to `/login`; public `/en`, `/sq` and both demos remain accessible.
+Tests use disposable PGlite databases (actual PostgreSQL engine, no external database needed). They cover role grants, validation, origin/session rejection, password hashing, organization isolation, composite foreign keys, session expiry/disabled users, audit immutability, Patient CRM, the laboratory catalogue, laboratory orders/specimens, laboratory results, laboratory reports, report sharing, laboratory billing and rendered dashboard structure. HTTP route-protection smoke checks should run against `npm run dev:node` or `npm run start:node`: anonymous `/app` and nested application URLs redirect to `/login`; public `/en`, `/sq` and both demos remain accessible.
 
 ## Deployment
 
@@ -50,13 +50,13 @@ docker compose config --quiet
 docker compose up -d --build app
 ```
 
-Keep ports bound to localhost behind the existing HTTPS reverse proxy. Give runtime credentials SELECT/INSERT/UPDATE on organizations/users as needed, SELECT/INSERT/DELETE on sessions, SELECT/INSERT/UPDATE on login_limits, and INSERT/SELECT only on audit_events; no schema ownership, DDL, audit mutation or truncate privileges. Grant the same SELECT/INSERT/UPDATE pattern on patients, patient_counters, lab_test_categories, lab_units, lab_tests, lab_reference_ranges, lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests, lab_order_counters, lab_accession_counters, lab_results, lab_reports, lab_report_deliveries and lab_report_shares. Grant SELECT/INSERT/DELETE on lab_report_share_sessions. Grant SELECT/INSERT/UPDATE on share_access_limits. Grant DELETE on `lab_order_tests` only (draft test removal before an order is placed). Do not grant DELETE on `lab_report_shares`. Do not grant DELETE/TRUNCATE on patient, catalogue, order or specimen tables otherwise. Rehearse encrypted backups and restores. Never delete the named volume during upgrades. Back up before migrations; applied migrations have checksums and must not be edited.
+Keep ports bound to localhost behind the existing HTTPS reverse proxy. Give runtime credentials SELECT/INSERT/UPDATE on organizations/users as needed, SELECT/INSERT/DELETE on sessions, SELECT/INSERT/UPDATE on login_limits, and INSERT/SELECT only on audit_events; no schema ownership, DDL, audit mutation or truncate privileges. Grant the same SELECT/INSERT/UPDATE pattern on patients, patient_counters, lab_test_categories, lab_units, lab_tests, lab_reference_ranges, lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests, lab_order_counters, lab_accession_counters, lab_results, lab_reports, lab_report_deliveries, lab_report_shares, lab_invoices and lab_invoice_counters. Grant SELECT/INSERT/DELETE on lab_report_share_sessions. Grant SELECT/INSERT/UPDATE on share_access_limits. Grant INSERT/SELECT on lab_invoice_payments. Grant DELETE on `lab_order_tests` only (draft test removal before an order is placed). Do not grant DELETE on `lab_report_shares`, `lab_invoices` or `lab_invoice_payments`. Do not grant DELETE/TRUNCATE on patient, catalogue, order or specimen tables otherwise. Rehearse encrypted backups and restores. Never delete the named volume during upgrades. Back up before migrations; applied migrations have checksums and must not be edited.
 
 Authentication uses database sessions with 8-hour expiry, HttpOnly cookies, production Secure cookies, origin checks and a shared 5-attempt/15-minute account throttle. A perimeter request-size and IP rate limit is also recommended before public rollout. Logs must never contain credentials, request bodies, patient records or session tokens. Expired session/throttle maintenance is an operator task; no raw/audit data cleanup is provided.
 
 ## Scope
 
-Organization/user/role schema, login/logout, protected shell, dashboard, module empty states, audit foundation and provider-neutral AI contracts are implemented. AI defaults off and no model calls exist. Patient CRM is implemented in Phase 2. The laboratory test catalogue and versioned reference ranges are implemented in Phase 3. Laboratory orders and specimen collection are implemented in Phase 4. Laboratory results, technical validation, clinical verification and amendments are implemented in Phase 5. Order completion, laboratory reports, PDF generation and delivery records are implemented in Phase 6. Secure patient report delivery and sharing are implemented in Phase 7. Billing and user management remain future work.
+Organization/user/role schema, login/logout, protected shell, dashboard, module empty states, audit foundation and provider-neutral AI contracts are implemented. AI defaults off and no model calls exist. Patient CRM is implemented in Phase 2. The laboratory test catalogue and versioned reference ranges are implemented in Phase 3. Laboratory orders and specimen collection are implemented in Phase 4. Laboratory results, technical validation, clinical verification and amendments are implemented in Phase 5. Order completion, laboratory reports, PDF generation and delivery records are implemented in Phase 6. Secure patient report delivery and sharing are implemented in Phase 7. Laboratory billing, invoicing and manual payment recording are implemented in Phase 8. User management remains future work.
 
 **Phase 2:** organization-scoped Patient CRM is implemented. See [Patient CRM](docs/patient-crm.md) for schema, permissions, duplicate handling, audit behavior and limitations.
 
@@ -68,7 +68,9 @@ Organization/user/role schema, login/logout, protected shell, dashboard, module 
 
 **Phase 6:** order completion, issued laboratory reports, PDFs and delivery records are implemented. See [Laboratory reports](docs/lab-reports.md).
 
-**Phase 7:** secure, expiring report shares, PIN verification and snapshot-only public PDFs are implemented. See [Laboratory report sharing](docs/lab-report-sharing.md). Billing and analyzers remain future work.
+**Phase 7:** secure, expiring report shares, PIN verification and snapshot-only public PDFs are implemented. See [Laboratory report sharing](docs/lab-report-sharing.md).
+
+**Phase 8:** laboratory invoices, frozen financial snapshots, PDFs and append-only payments are implemented. See [Laboratory billing](docs/lab-billing.md). Analyzers remain future work.
 
 Run HTTP boundary checks against a running server with `SMOKE_ORIGIN=http://localhost:3000 npm run test:http` (APP_ORIGIN must match). These verify every module redirect, public bilingual routes, origin checks, oversized form rejection and invalid credentials.
 
@@ -92,7 +94,7 @@ npm run lint
 
 Run build and typecheck sequentially because the build regenerates route types. API integration tests execute real handlers and PostgreSQL SQL using PGlite; only the framework session/pool boundary is mocked using Node's experimental module-mock facility (Node 22.13+). Live HTTP tests independently verify session rejection and preservation of public routes. Docker/PostgreSQL network verification remains separate.
 
-Grant the runtime role SELECT/INSERT/UPDATE on patients, patient_counters, lab_test_categories, lab_units, lab_tests, lab_reference_ranges, lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests, lab_results, lab_reports, lab_report_shares and the yearly counters, retaining existing organization/user/audit privileges. Grant INSERT/SELECT on lab_report_deliveries. Grant SELECT/INSERT/DELETE on lab_report_share_sessions. Grant SELECT/INSERT/UPDATE on share_access_limits. Grant DELETE only on `lab_order_tests` for draft removal. Do not grant DELETE on `lab_report_shares`. Do not grant DELETE/TRUNCATE on clinical tables or audit UPDATE/DELETE/TRUNCATE. Include those tables in encrypted backups and restore exercises.
+Grant the runtime role SELECT/INSERT/UPDATE on patients, patient_counters, lab_test_categories, lab_units, lab_tests, lab_reference_ranges, lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests, lab_results, lab_reports, lab_report_shares, lab_invoices and the yearly counters, retaining existing organization/user/audit privileges. Grant INSERT/SELECT on lab_report_deliveries and lab_invoice_payments. Grant SELECT/INSERT/DELETE on lab_report_share_sessions. Grant SELECT/INSERT/UPDATE on share_access_limits. Grant DELETE only on `lab_order_tests` for draft removal. Do not grant DELETE on `lab_report_shares`, `lab_invoices` or `lab_invoice_payments`. Do not grant DELETE/TRUNCATE on clinical tables or audit UPDATE/DELETE/TRUNCATE. Include those tables in encrypted backups and restore exercises.
 
 ## Laboratory catalogue development
 
@@ -157,6 +159,20 @@ npm run lint
 ## Laboratory report sharing
 
 Apply migration 007 using the existing migration command. Migrations 001–006 have not changed. Sign in as a biochemist or administrator, open an issued report, create a secure share, then open `/report-access/[token]` without a staff session. Recipients enter the one-time PIN and download the official PDF. Doctors can still download issued reports internally but cannot create public links.
+
+```sh
+node --env-file=.env.local --import tsx scripts/migrate.ts
+npm test
+npm run test:api
+SMOKE_ORIGIN=http://localhost:3000 npm run test:http
+npm run build
+npm run typecheck
+npm run lint
+```
+
+## Laboratory billing
+
+Apply migration 008 using the existing migration command. Migrations 001–007 have not changed. Sign in as a receptionist or administrator, open a laboratory order with active priced tests, create a draft invoice, optionally set discount/tax, issue it, then record payments from the order Billing panel or `/app/billing`. Issued PDFs and list labels use the frozen invoice snapshot. Doctors and technicians cannot access billing.
 
 ```sh
 node --env-file=.env.local --import tsx scripts/migrate.ts

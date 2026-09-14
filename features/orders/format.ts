@@ -40,6 +40,12 @@ export const orderActivityLabels: Record<string, string> = {
   LAB_ORDER_IN_PROCESS: 'Result processing started',
   LAB_ORDER_COMPLETED: 'Order completed',
   LAB_ORDER_REOPENED: 'Order reopened',
+  LAB_INVOICE_CREATED: 'Invoice draft created',
+  LAB_INVOICE_UPDATED: 'Invoice draft updated',
+  LAB_INVOICE_ISSUED: 'Invoice issued',
+  LAB_INVOICE_CANCELLED: 'Invoice cancelled',
+  LAB_PAYMENT_RECORDED: 'Payment recorded',
+  LAB_INVOICE_DOWNLOADED: 'Invoice PDF downloaded',
 };
 export function stampLabel(value: string) {
   if (!value) return '—';

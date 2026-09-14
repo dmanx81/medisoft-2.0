@@ -65,7 +65,8 @@ export const navigation: {
     href: '/app/billing',
     permission: 'billing:read',
     group: 'Practice',
-    description: 'Invoices and payments will be available in a future release.',
+    description:
+      'Create draft invoices from laboratory orders, issue frozen invoices, and record payments.',
   },
   {
     label: 'Tests',
