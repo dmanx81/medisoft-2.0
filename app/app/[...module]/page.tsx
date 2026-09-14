@@ -4,6 +4,7 @@ import { can } from '@/lib/auth/permissions';
 import { navigation } from '@/components/application/navigation';
 import { database } from '@/lib/db';
 import { organizationScope } from '@/lib/db/tenant';
+import { BillingSettingsForm } from '@/components/billing/settings';
 export default async function ModulePage({
   params,
 }: {
@@ -31,6 +32,8 @@ export default async function ModulePage({
         timezone: string;
         default_language: string;
         ai_enabled: boolean;
+        currency: string;
+        default_tax_rate: string;
       }
     | undefined;
   if (route.href === '/app/settings') {
@@ -38,7 +41,7 @@ export default async function ModulePage({
     // Organizations itself is keyed by id; all owned resources use organization_id.
     settings = (
       await database().query(
-        'SELECT name,timezone,default_language,ai_enabled FROM organizations WHERE id=$1',
+        'SELECT name,timezone,default_language,ai_enabled,currency,default_tax_rate::text FROM organizations WHERE id=$1',
         scope.values,
       )
     ).rows[0];
@@ -59,6 +62,8 @@ export default async function ModulePage({
               ['Timezone', settings.timezone],
               ['Default language', settings.default_language],
               ['AI assistance', settings.ai_enabled ? 'Enabled' : 'Disabled'],
+              ['Billing currency', settings.currency],
+              ['Default tax rate', `${settings.default_tax_rate}%`],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -69,6 +74,14 @@ export default async function ModulePage({
               </div>
             ))}
           </dl>
+        )}
+        {settings && can(principal.role, 'billing:settings') && (
+          <BillingSettingsForm
+            initial={{
+              currency: settings.currency,
+              default_tax_rate: settings.default_tax_rate,
+            }}
+          />
         )}
       </div>
     </section>

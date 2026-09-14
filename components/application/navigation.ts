@@ -66,7 +66,7 @@ export const navigation: {
     permission: 'billing:read',
     group: 'Practice',
     description:
-      'Create draft invoices from laboratory orders, issue frozen invoices, and record payments.',
+      'Create draft invoices from laboratory orders, issue frozen invoices, record payments, and apply accounting corrections.',
   },
   {
     label: 'Tests',
@@ -90,6 +90,6 @@ export const navigation: {
     permission: 'settings:read',
     group: 'Management',
     description:
-      'Organization preferences are shown below. Editing will be available in a future release.',
+      'Organization preferences and billing defaults. Changing currency or tax does not rewrite issued invoices.',
   },
 ];

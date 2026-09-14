@@ -46,6 +46,7 @@ export async function buildInvoiceSnapshot(
     discount_type: DiscountType;
     discount_value: string;
     tax_rate: string;
+    due_date?: string;
     lines: BillableLine[];
   },
 ): Promise<LabInvoiceSnapshot> {
@@ -131,6 +132,7 @@ export async function buildInvoiceSnapshot(
       discount_type: input.discount_type,
       discount_value: input.discount_value,
       tax_rate: input.tax_rate,
+      ...(input.due_date ? { due_date: input.due_date } : {}),
     },
     lines: totals.lines,
     totals: {

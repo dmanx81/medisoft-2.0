@@ -55,6 +55,7 @@ export type LabInvoiceSnapshot = {
     discount_type: DiscountType;
     discount_value: string;
     tax_rate: string;
+    due_date?: string;
   };
   lines: InvoiceSnapshotLine[];
   totals: {
@@ -83,7 +84,10 @@ export type LabInvoice = {
   tax_total: string;
   total: string;
   amount_paid: string;
+  credit_total: string;
   balance_due: string;
+  due_date: string;
+  overdue: boolean;
   issued_at: string;
   issued_by: string;
   issued_by_name: string;
@@ -112,6 +116,95 @@ export type LabInvoicePayment = {
   recorded_by: string;
   recorded_by_name: string;
   created_at: string;
+  reversed_amount: string;
+};
+
+export type CreditNoteStatus = 'DRAFT' | 'ISSUED';
+
+export type LabCreditNoteSnapshot = {
+  schema_version: 1;
+  organization: {
+    name: string;
+    slug: string;
+    currency: string;
+  };
+  patient: {
+    patient_number: string;
+    first_name: string;
+    last_name: string;
+  };
+  invoice: {
+    invoice_id: string;
+    invoice_number: string;
+    issued_at: string;
+    billed_total: string;
+    currency: string;
+  };
+  credit_note: {
+    credit_note_number: string;
+    issued_at: string;
+    issued_by_name: string;
+    reason: string;
+    notes: string;
+    currency: string;
+  };
+  totals: {
+    subtotal: string;
+    tax_total: string;
+    total: string;
+  };
+};
+
+export type LabCreditNote = {
+  id: string;
+  organization_id: string;
+  invoice_id: string;
+  credit_note_number: string;
+  status: CreditNoteStatus;
+  currency: string;
+  reason: string;
+  notes: string;
+  subtotal: string;
+  tax_total: string;
+  total: string;
+  issued_at: string;
+  issued_by: string;
+  issued_by_name: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  updated_by: string;
+  version: number;
+  snapshot: LabCreditNoteSnapshot | Record<string, never>;
+};
+
+export type LabPaymentReversal = {
+  id: string;
+  organization_id: string;
+  payment_id: string;
+  invoice_id: string;
+  amount: string;
+  currency: string;
+  reason: string;
+  recorded_by: string;
+  recorded_by_name: string;
+  created_at: string;
+};
+
+export type LabInvoiceDelivery = {
+  id: string;
+  organization_id: string;
+  invoice_id: string;
+  method: 'EMAIL';
+  recipient: string;
+  recorded_by: string;
+  recorded_by_name: string;
+  occurred_at: string;
+};
+
+export type OrganizationBillingSettings = {
+  currency: string;
+  default_tax_rate: string;
 };
 
 export type BillableLine = {
@@ -138,6 +231,8 @@ export type InvoiceContext = {
   };
   invoice: LabInvoice | null;
   payments: LabInvoicePayment[];
+  reversals: LabPaymentReversal[];
+  credit_notes: LabCreditNote[];
 };
 
 export type InvoiceWorkItem = {
@@ -147,7 +242,10 @@ export type InvoiceWorkItem = {
   currency: string;
   total: string;
   amount_paid: string;
+  credit_total: string;
   balance_due: string;
+  due_date: string;
+  overdue: boolean;
   issued_at: string;
   order_id: string;
   order_number: string;

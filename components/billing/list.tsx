@@ -169,6 +169,7 @@ export function InvoiceList({ initial }: { initial: WorkPage }) {
                   <TableCell>
                     <span className="rounded border border-line bg-mint px-2 py-0.5 text-xs text-teal">
                       {invoiceStatusLabels[invoice.status]}
+                      {invoice.overdue ? ' · Overdue' : ''}
                     </span>
                   </TableCell>
                 </TableRow>

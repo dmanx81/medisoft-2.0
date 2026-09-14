@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { InvoiceList } from '../components/billing/list';
 import { InvoiceDetail } from '../components/billing/detail';
+import { BillingSettingsForm } from '../components/billing/settings';
 import { OrderDetail } from '../components/orders/detail';
 import { PatientDetail } from '../components/patients/detail';
 import { PatientInvoices } from '../components/billing/patient-invoices';
@@ -62,7 +63,10 @@ const invoice: LabInvoice = {
   tax_total: '0.00',
   total: '15.00',
   amount_paid: '5.00',
+  credit_total: '0.00',
   balance_due: '10.00',
+  due_date: '2026-09-20',
+  overdue: false,
   issued_at: '2026-09-13T10:00:00.000Z',
   issued_by: 'user',
   issued_by_name: 'Reception',
@@ -146,7 +150,10 @@ void test('billing worklist searches invoices and labels snapshot identity', () 
             currency: invoice.currency,
             total: invoice.total,
             amount_paid: invoice.amount_paid,
+            credit_total: invoice.credit_total,
             balance_due: invoice.balance_due,
+            due_date: invoice.due_date,
+            overdue: invoice.overdue,
             issued_at: invoice.issued_at,
             order_id: invoice.order_id,
             order_number: 'LAB-2026-000009',
@@ -196,6 +203,7 @@ void test('invoice detail keeps billed snapshot values and current ledger separa
           recorded_by: 'user',
           recorded_by_name: 'Reception',
           created_at: '2026-09-13T10:05:00.000Z',
+          reversed_amount: '0.00',
         },
       ]}
       canIssue
@@ -206,10 +214,12 @@ void test('invoice detail keeps billed snapshot values and current ledger separa
   );
   assert.ok(html.includes('INV-2026-000001'));
   assert.ok(html.includes('Glucose'));
-  assert.ok(html.includes('Current account state'));
-  assert.ok(html.includes('does not rewrite the issued'));
+  assert.ok(html.includes('Official billed document'));
+  assert.ok(html.includes('Current financial ledger'));
+  assert.ok(html.includes('do not rewrite the official billed document'));
   assert.ok(html.includes('Record payment'));
   assert.ok(html.includes('Download invoice PDF'));
+  assert.ok(html.includes('Download receipt'));
   assert.ok(html.includes('/api/lab-invoices/00000000-0000-4000-8000-000000000030/pdf'));
   const readonly = renderToStaticMarkup(
     <InvoiceDetail
@@ -223,6 +233,41 @@ void test('invoice detail keeps billed snapshot values and current ledger separa
   );
   assert.ok(!readonly.includes('Record payment'));
   assert.ok(!readonly.includes('Issue invoice'));
+  assert.ok(!readonly.includes('Reverse payment'));
+  assert.ok(!readonly.includes('Create credit note'));
+  assert.ok(!readonly.includes('Email official invoice'));
+  const privileged = renderToStaticMarkup(
+    <InvoiceDetail
+      initial={invoice}
+      payments={[
+        {
+          id: '00000000-0000-4000-8000-000000000031',
+          organization_id: 'org',
+          invoice_id: invoice.id,
+          amount: '5.00',
+          currency: 'ALL',
+          method: 'CASH',
+          reference: 'desk',
+          notes: '',
+          received_at: '2026-09-13T10:05:00.000Z',
+          recorded_by: 'user',
+          recorded_by_name: 'Reception',
+          created_at: '2026-09-13T10:05:00.000Z',
+          reversed_amount: '0.00',
+        },
+      ]}
+      canIssue={false}
+      canPay={false}
+      canCancel={false}
+      canEditDraft={false}
+      canCorrect
+      canEmail
+    />,
+  );
+  assert.ok(privileged.includes('Reverse payment'));
+  assert.ok(privileged.includes('Create credit note'));
+  assert.ok(privileged.includes('Email official invoice'));
+  assert.ok(privileged.includes('Download receipt'));
 });
 void test('order billing panel and patient billing tab follow permissions', () => {
   const html = renderToStaticMarkup(
@@ -281,4 +326,13 @@ void test('order billing panel and patient billing tab follow permissions', () =
     <PatientDetail patient={patient} canActivity={false} />,
   );
   assert.ok(denied.includes('Billing'));
+});
+void test('organization billing settings are administrator-only in the settings form', () => {
+  const html = renderToStaticMarkup(
+    <BillingSettingsForm initial={{ currency: 'ALL', default_tax_rate: '0.00' }} />,
+  );
+  assert.ok(html.includes('Laboratory billing defaults'));
+  assert.ok(html.includes('newly created draft invoices'));
+  assert.ok(html.includes('org-billing-currency'));
+  assert.ok(html.includes('Save billing defaults'));
 });
