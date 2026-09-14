@@ -135,6 +135,51 @@ export type ReportDelivery = {
   delivered_by_name: string;
   created_at: string;
 };
+export type ShareExpiry = '24h' | '3d' | '7d' | '30d';
+export type LabReportShare = {
+  id: string;
+  organization_id: string;
+  report_id: string;
+  report_number: string;
+  report_version: number;
+  report_status: string;
+  is_current: boolean;
+  recipient_name: string;
+  recipient_email: string;
+  purpose: string;
+  created_at: string;
+  created_by: string;
+  created_by_name: string;
+  expires_at: string;
+  revoked_at: string;
+  revoked_by: string;
+  revoked_by_name: string;
+  access_count: number;
+  last_accessed_at: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+};
+export type CreatedReportShare = {
+  share: LabReportShare;
+  token: string;
+  pin: string;
+  url: string;
+  message: string;
+};
+export type PublicReportView = {
+  organization_name: string;
+  organization_address: string;
+  organization_phone: string;
+  organization_email: string;
+  report_number: string;
+  report_version: number;
+  issued_at: string;
+  issued_by_name: string;
+  patient_name: string;
+  patient_number: string;
+  order_number: string;
+  status: string;
+  superseded: boolean;
+};
 export class ReportError extends Error {
   constructor(
     public status: number,

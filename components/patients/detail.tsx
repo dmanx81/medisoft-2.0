@@ -5,16 +5,19 @@ import { formSections } from './fields';
 import { dateLabel } from '@/features/patients/format';
 import { Activity } from './activity';
 import { PatientOrders } from '@/components/orders/patient-orders';
+import { PatientInvoices } from '@/components/billing/patient-invoices';
 export function PatientDetail({
   patient,
   canActivity,
   canReadOrders = false,
   canCreateOrders = false,
+  canReadBilling = false,
 }: {
   patient: Patient;
   canActivity: boolean;
   canReadOrders?: boolean;
   canCreateOrders?: boolean;
+  canReadBilling?: boolean;
 }) {
   return (
     <Tabs defaultValue="overview">
@@ -75,7 +78,7 @@ export function PatientDetail({
           </div>
         )}
       </TabsContent>
-      {['Results', 'Documents', 'Billing'].map((label) => (
+      {['Results', 'Documents'].map((label) => (
         <TabsContent
           key={label}
           value={label}
@@ -87,6 +90,18 @@ export function PatientDetail({
           </p>
         </TabsContent>
       ))}
+      <TabsContent value="Billing" className="mt-4">
+        {canReadBilling ? (
+          <PatientInvoices patientId={patient.id} />
+        ) : (
+          <div className="rounded-md border border-line bg-white p-8">
+            <h2 className="font-semibold">Billing</h2>
+            <p className="mt-2 text-sm text-slate">
+              Your role cannot view invoices for this patient.
+            </p>
+          </div>
+        )}
+      </TabsContent>
       {canActivity && (
         <TabsContent
           value="activity"

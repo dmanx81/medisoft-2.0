@@ -47,6 +47,12 @@ export default async function OrderPage({
         canGenerateReports={can(user.role, 'reports:generate')}
         canDownloadReports={can(user.role, 'reports:download')}
         canDeliverReports={can(user.role, 'reports:deliver')}
+        canShareReports={can(user.role, 'reports:share')}
+        canRevokeReportShares={can(user.role, 'reports:share-revoke')}
+        canReadBilling={can(user.role, 'billing:read')}
+        canCreateBilling={can(user.role, 'billing:create')}
+        canIssueBilling={can(user.role, 'billing:issue')}
+        canRecordPayments={can(user.role, 'billing:payment-record')}
       />
     </div>
   );

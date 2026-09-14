@@ -27,6 +27,9 @@ void test('report APIs deny unauthenticated requests and do not support hard del
     [`/api/lab-reports/${id}`, 'GET'],
     [`/api/lab-reports/${id}/pdf`, 'GET'],
     [`/api/lab-reports/${id}/deliver`, 'POST'],
+    [`/api/lab-reports/${id}/shares`, 'GET'],
+    [`/api/lab-reports/${id}/shares`, 'POST'],
+    [`/api/lab-report-shares/${id}/revoke`, 'POST'],
   ]) {
     const response: Response = await fetch(`${origin}${path}`, {
       method,

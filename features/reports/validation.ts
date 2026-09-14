@@ -36,6 +36,38 @@ export const searchSchema = z
     pageSize: z.number().int().min(1).max(50).default(20),
   })
   .strict();
+export const shareExpiries = ['24h', '3d', '7d', '30d'] as const;
+export const createShareSchema = z
+  .object({
+    recipient_name: z.string().trim().max(160).default(''),
+    recipient_email: z.string().trim().max(254).default(''),
+    purpose: z.string().trim().max(200).default(''),
+    expires_in: z.enum(shareExpiries).default('24h'),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.recipient_email &&
+      !z.email().safeParse(value.recipient_email.toLowerCase()).success
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['recipient_email'],
+        message: 'Enter a valid email address or leave this blank.',
+      });
+    }
+  });
+export const verifyShareSchema = z
+  .object({
+    pin: z
+      .string()
+      .trim()
+      .regex(/^\d{8}$/, 'Enter the 8-digit access PIN.'),
+  })
+  .strict();
+export const shareTokenSchema = z
+  .string()
+  .regex(/^[a-f0-9]{64}$/);
 export type ReportSearch = z.output<typeof searchSchema>;
 export function fieldErrors(error: z.ZodError): Record<string, string> {
   return Object.fromEntries(
