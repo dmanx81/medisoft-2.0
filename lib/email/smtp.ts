@@ -1,4 +1,3 @@
-import nodemailer from 'nodemailer';
 import type { AppEnvironment } from '@/lib/env';
 import {
   BillingEmailError,
@@ -12,6 +11,7 @@ export class SmtpBillingEmailProvider implements BillingEmailProvider {
 
   async send(message: BillingEmailMessage): Promise<BillingEmailResult> {
     try {
+      const nodemailer = (await import('nodemailer')).default;
       const transporter = nodemailer.createTransport(this.transport());
       const info = await transporter.sendMail({
         from: this.config.SMTP_FROM,

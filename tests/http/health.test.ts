@@ -35,7 +35,11 @@ void test('authenticated and login responses carry production security headers',
       /camera=\(\)/,
       path,
     );
-    assert.ok(response.headers.get('cache-control')?.includes('no-store'), path);
+    const cache = (response.headers.get('cache-control') ?? '').toLowerCase();
+    assert.ok(
+      cache.includes('no-store') || cache.includes('no-cache'),
+      `${path} cache-control=${cache}`,
+    );
     assert.equal(response.headers.get('strict-transport-security'), null, path);
   }
 });

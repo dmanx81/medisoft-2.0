@@ -24,6 +24,7 @@ const publicReportHeaders = [
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  serverExternalPackages: ['nodemailer'],
   async headers() {
     return [
       { source: '/:path*', headers: baselineHeaders },

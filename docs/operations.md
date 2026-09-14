@@ -156,6 +156,25 @@ curl -fsS http://127.0.0.1:3000/api/health
 curl -fsS http://127.0.0.1:3000/api/ready
 ```
 
+## Query and index review
+
+EXPLAIN on the development PostgreSQL 17 database (synthetic data) used existing tenant indexes. No migration `010_production_readiness.sql` was added.
+
+| Query | Plan |
+| --- | --- |
+| Patient search by organization + name ILIKE | `Index Scan` on `patients_name`; ILIKE `%term%` remains a filter |
+| Order list by `updated_at` | `Index Only Scan` on `lab_orders_updated` |
+| Specimens for tenant orders | `Index Scan` on `lab_specimens_order` |
+| Verified results | `Index Scan` on `lab_results_status` |
+| Report list by `issued_at` | `Index Only Scan` on `lab_reports_issued` |
+| Report shares | `Index Scan` on `lab_report_shares_report` |
+| Invoice list | `Index Scan` on `lab_invoices_status` plus a small sort on `COALESCE(issued_at, created_at)` |
+| Payments / reversals / credit notes | Existing invoice-scoped indexes |
+| Audit by organization | Sequential scan on a 6-row development table; `audit_organization_time` already exists for production volume |
+| User by email + session by hash | Unique/primary key lookups |
+
+Leading-wildcard `ILIKE` search is organization-scoped by design. Trigram indexes were not added (PGlite fixtures would not match, and the development table is tiny).
+
 ## Backup
 
 Custom-format `pg_dump` (compressed) with timestamped names. Passwords stay in the environment, not the command line.
