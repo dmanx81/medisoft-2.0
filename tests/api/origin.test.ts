@@ -35,15 +35,15 @@ mock.module('../../lib/db/index.ts', {
   },
 });
 
-const { patientApi } = await import('../../features/patients/http.ts');
-const { catalogueApi } = await import('../../features/catalogue/http.ts');
-const { orderApi } = await import('../../features/orders/http.ts');
-const { resultApi } = await import('../../features/results/http.ts');
+const { patientApi } = await import('../../features/patients/http');
+const { catalogueApi } = await import('../../features/catalogue/http');
+const { orderApi } = await import('../../features/orders/http');
+const { resultApi } = await import('../../features/results/http');
 const { reportApi, publicShareApi } = await import(
-  '../../features/reports/http.ts'
+  '../../features/reports/http'
 );
-const { billingApi } = await import('../../features/billing/http.ts');
-const { POST: logout } = await import('../../app/api/auth/logout/route.ts');
+const { billingApi } = await import('../../features/billing/http');
+const { POST: logout } = await import('../../app/api/auth/logout/route');
 
 const trustedNull = {
   origin: 'null',
