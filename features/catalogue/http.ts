@@ -1,7 +1,7 @@
 import 'server-only';
 import { currentUser } from '@/lib/auth/session';
 import { can, type Permission, type Principal } from '@/lib/auth/permissions';
-import { validOrigin } from '@/lib/validation';
+import { requestOriginHeaders, validRequestOrigin } from '@/lib/validation';
 import { environment } from '@/lib/env';
 import { CatalogueError } from './types';
 import { logUnexpectedFailure } from '@/lib/log';
@@ -22,7 +22,7 @@ export async function catalogueApi(
       );
     if (
       request.method !== 'GET' &&
-      !validOrigin(request.headers.get('origin'), environment().APP_ORIGIN)
+      !validRequestOrigin(requestOriginHeaders(request), environment().APP_ORIGIN)
     )
       throw new CatalogueError(
         403,

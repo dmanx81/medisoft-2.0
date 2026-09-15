@@ -46,6 +46,15 @@ function forwardedOrigin(
   return `${proto}://${host}`;
 }
 
+export function requestOriginHeaders(request: Request): RequestOriginHeaders {
+  return {
+    origin: request.headers.get('origin'),
+    secFetchSite: request.headers.get('sec-fetch-site'),
+    forwardedProto: request.headers.get('x-forwarded-proto'),
+    forwardedHost: request.headers.get('x-forwarded-host'),
+  };
+}
+
 export function validRequestOrigin(
   headers: RequestOriginHeaders,
   expected: string,

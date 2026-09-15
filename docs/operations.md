@@ -140,7 +140,7 @@ Next.js standalone handles `SIGTERM`. Give the process a few seconds to drain.
 - Set `APP_ORIGIN` to the exact public origin the browser will send as `Origin` (scheme + host + port if non-default).
 - Forward to `http://127.0.0.1:3000`.
 - Do not enable a global `Host` trust bypass; login redirects use `APP_ORIGIN`, not the request Host header.
-- Send `X-Forwarded-Proto https` if the proxy adds it; the application does not currently reconstruct URLs from that header.
+- Overwrite `X-Forwarded-Proto` and `X-Forwarded-Host` so they reconstruct `APP_ORIGIN` exactly. Login, logout, and same-origin mutations accept that exact `Origin`, or literal `Origin: null` only with `Sec-Fetch-Site: same-origin` and a matching reconstructed origin. Redirects still use `APP_ORIGIN`.
 - Add a perimeter request-size and IP rate limit before public rollout. Application-level login throttling is 5 failures / 15 minutes per email hash. Report-share PIN attempts are 5 / 15 minutes; public PDF downloads are 30 / 15 minutes.
 - HSTS is added by `proxy.ts` only when `NODE_ENV=production` and `APP_ORIGIN` is HTTPS. It is not baked into the production build, so local HTTP development is not forced onto HTTPS.
 
@@ -237,7 +237,7 @@ Inspect with `docker compose logs -f app` or the process manager journal. Never 
 | --- | --- |
 | Process exits at start | `scripts/check-config.ts`; production `APP_ORIGIN` must be HTTPS and not localhost |
 | `/api/ready` is 503 | PostgreSQL connectivity and runtime grants; the JSON body never includes the driver error |
-| Login 403 | Browser `Origin` must equal `APP_ORIGIN` |
+| Login or mutation 403 | Exact `Origin` must equal `APP_ORIGIN`, or literal `Origin: null` with `Sec-Fetch-Site: same-origin` and forwarded proto/host reconstructing `APP_ORIGIN` |
 | Login 503 | Database down or configuration invalid; generic body only |
 | Invoice email 503 `EMAIL_DISABLED` | Set `EMAIL_PROVIDER=smtp` with valid SMTP settings, or keep disabled and use another delivery method |
 | Invoice email 503 `EMAIL_UNAVAILABLE` | SMTP host/credentials; no secret is returned |

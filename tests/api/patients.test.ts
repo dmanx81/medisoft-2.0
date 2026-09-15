@@ -88,6 +88,22 @@ void test('authenticated patient API contract enforces permissions, scope, valid
       ).status,
       403,
     );
+    const trustedNull = await createRoute.POST(
+      new Request('https://clinic.example/api/patients', {
+        method: 'POST',
+        headers: {
+          origin: 'null',
+          'sec-fetch-site': 'same-origin',
+          'x-forwarded-proto': 'https',
+          'x-forwarded-host': 'clinic.example',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: { ...data, first_name: 'Trusted null origin' },
+        }),
+      }),
+    );
+    assert.equal(trustedNull.status, 200);
     assert.equal(
       (
         await createRoute.POST(

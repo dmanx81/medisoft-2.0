@@ -5,6 +5,7 @@ import { organizationScope, assertOrganization } from '../lib/db/tenant';
 import {
   loginSchema,
   organizationSchema,
+  requestOriginHeaders,
   validOrigin,
   validRequestOrigin,
   validSessionToken,
@@ -189,6 +190,19 @@ void test('request origin accepts same-origin null Origin only behind a matching
     ),
     false,
   );
+  const extracted = requestOriginHeaders(
+    new Request('https://medisoftlabs.online/api/patients', {
+      method: 'POST',
+      headers: {
+        origin: 'null',
+        'sec-fetch-site': 'same-origin',
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': 'medisoftlabs.online',
+      },
+    }),
+  );
+  assert.deepEqual(extracted, matchingProxy);
+  assert.equal(validRequestOrigin(extracted, expected), true);
 });
 void test('production rejects demo fixtures, localhost origins and stub email without exposing secrets', () => {
   const config = {

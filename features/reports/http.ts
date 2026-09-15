@@ -1,7 +1,7 @@
 import 'server-only';
 import { currentUser } from '@/lib/auth/session';
 import { can, type Permission, type Principal } from '@/lib/auth/permissions';
-import { validOrigin } from '@/lib/validation';
+import { requestOriginHeaders, validRequestOrigin } from '@/lib/validation';
 import { environment } from '@/lib/env';
 import { OrderError } from '@/features/orders/types';
 import { ResultError } from '@/features/results/types';
@@ -24,7 +24,7 @@ export async function reportApi(
       );
     if (
       request.method !== 'GET' &&
-      !validOrigin(request.headers.get('origin'), environment().APP_ORIGIN)
+      !validRequestOrigin(requestOriginHeaders(request), environment().APP_ORIGIN)
     )
       throw new ReportError(
         403,
@@ -143,7 +143,7 @@ export async function publicShareApi(
     if (
       options.checkOrigin &&
       request.method !== 'GET' &&
-      !validOrigin(request.headers.get('origin'), environment().APP_ORIGIN)
+      !validRequestOrigin(requestOriginHeaders(request), environment().APP_ORIGIN)
     )
       throw new ReportError(
         403,

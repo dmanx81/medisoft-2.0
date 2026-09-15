@@ -1,7 +1,7 @@
 import 'server-only';
 import { currentUser } from '@/lib/auth/session';
 import { can, type Permission, type Principal } from '@/lib/auth/permissions';
-import { validOrigin } from '@/lib/validation';
+import { requestOriginHeaders, validRequestOrigin } from '@/lib/validation';
 import { environment } from '@/lib/env';
 import type { QueryRunner } from '@/lib/db/query';
 import { listResultsForOrder } from '@/features/results/repository';
@@ -27,7 +27,7 @@ export async function orderApi(
       );
     if (
       request.method !== 'GET' &&
-      !validOrigin(request.headers.get('origin'), environment().APP_ORIGIN)
+      !validRequestOrigin(requestOriginHeaders(request), environment().APP_ORIGIN)
     )
       throw new OrderError(
         403,

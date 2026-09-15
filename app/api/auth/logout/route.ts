@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import { currentUser, sessionCookie } from '@/lib/auth/session';
 import { database } from '@/lib/db';
 import { environment } from '@/lib/env';
-import { validOrigin } from '@/lib/validation';
+import { requestOriginHeaders, validRequestOrigin } from '@/lib/validation';
 import { revokeSession } from '@/lib/auth/transactions';
 import { sessionCookieOptions } from '@/lib/http/cookies';
 import { logUnexpectedFailure } from '@/lib/log';
 export async function POST(request: Request) {
   try {
     const config = environment();
-    if (!validOrigin(request.headers.get('origin'), config.APP_ORIGIN))
+    if (!validRequestOrigin(requestOriginHeaders(request), config.APP_ORIGIN))
       return new Response('Forbidden', { status: 403 });
     const principal = await currentUser();
     if (principal) {
