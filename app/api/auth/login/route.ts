@@ -1,14 +1,26 @@
 import { NextResponse } from 'next/server';
 import { database } from '@/lib/db';
 import { environment } from '@/lib/env';
-import { loginSchema, validOrigin } from '@/lib/validation';
+import { loginSchema, validRequestOrigin } from '@/lib/validation';
 import { authenticate } from '@/lib/auth/transactions';
 import { sessionCookie } from '@/lib/auth/session';
+import { sessionCookieOptions } from '@/lib/http/cookies';
+import { logUnexpectedFailure } from '@/lib/log';
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
   try {
     const config = environment();
-    if (!validOrigin(request.headers.get('origin'), config.APP_ORIGIN))
+    if (
+      !validRequestOrigin(
+        {
+          origin: request.headers.get('origin'),
+          secFetchSite: request.headers.get('sec-fetch-site'),
+          forwardedProto: request.headers.get('x-forwarded-proto'),
+          forwardedHost: request.headers.get('x-forwarded-host'),
+        },
+        config.APP_ORIGIN,
+      )
+    )
       return new Response('Forbidden', { status: 403 });
     // Bound actual bytes, including chunked requests, before parsing credentials.
     const reader = request.body?.getReader();
@@ -53,16 +65,15 @@ export async function POST(request: Request) {
       new URL('/app', config.APP_ORIGIN),
       303,
     );
-    response.cookies.set(sessionCookie, session.token, {
-      httpOnly: true,
-      secure: config.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 8 * 60 * 60,
-    });
-    response.headers.set('Cache-Control', 'no-store');
+    response.cookies.set(
+      sessionCookie,
+      session.token,
+      sessionCookieOptions(config.NODE_ENV === 'production', 8 * 60 * 60),
+    );
+    response.headers.set('Cache-Control', 'private, no-store');
     return response;
   } catch {
+    logUnexpectedFailure('auth-login');
     return new Response(
       'Sign-in is temporarily unavailable. Please try again later.',
       { status: 503 },

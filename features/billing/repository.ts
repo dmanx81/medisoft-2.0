@@ -10,7 +10,7 @@ import {
   type DiscountType,
 } from './money';
 import { deriveInvoiceLedger, invoiceIsOverdue } from './ledger';
-import { billingEmailProvider } from './email';
+import { BillingEmailError, billingEmailProvider } from './email';
 import { renderInvoicePdf, renderReceiptPdf } from './pdf';
 import { buildInvoiceSnapshot, invoiceFromSnapshot, loadBillableLines } from './snapshot';
 import {
@@ -1538,18 +1538,29 @@ export async function emailInvoice(
     const snapshot = invoiceFromSnapshot(invoice.snapshot as LabInvoiceSnapshot);
     const pdf = await renderInvoicePdf(snapshot);
     const recipient = parsed.data.recipient.toLowerCase();
-    const sent = await billingEmailProvider().send({
-      to: recipient,
-      subject: `Invoice ${invoice.invoice_number}`,
-      text: `Please find invoice ${invoice.invoice_number} attached.`,
-      attachments: [
-        {
-          filename: `${invoice.invoice_number}.pdf`,
-          contentType: 'application/pdf',
-          content: pdf,
-        },
-      ],
-    });
+    let sent;
+    try {
+      sent = await billingEmailProvider().send({
+        to: recipient,
+        subject: `Invoice ${invoice.invoice_number}`,
+        text: `Please find invoice ${invoice.invoice_number} attached.`,
+        attachments: [
+          {
+            filename: `${invoice.invoice_number}.pdf`,
+            contentType: 'application/pdf',
+            content: pdf,
+          },
+        ],
+      });
+    } catch (error) {
+      if (error instanceof BillingEmailError)
+        throw new BillingError(503, error.code, error.message);
+      throw new BillingError(
+        503,
+        'EMAIL_UNAVAILABLE',
+        'Invoice email could not be sent. Try again later.',
+      );
+    }
     await db.query(
       `INSERT INTO lab_invoice_deliveries(organization_id,invoice_id,method,recipient,recorded_by)
  VALUES($1,$2,'EMAIL',$3,$4)`,

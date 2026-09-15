@@ -1,20 +1,20 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { applySecurityHeaders } from '@/lib/http/security-headers';
+import { productionHttpsOrigin } from '@/lib/http/cookies';
 
 export function proxy(request: NextRequest) {
   const response = NextResponse.next();
-  if (
-    request.nextUrl.pathname.startsWith('/report-access') ||
-    request.nextUrl.pathname.startsWith('/api/public/')
-  ) {
-    response.headers.set('Cache-Control', 'private, no-store');
-    response.headers.set('Referrer-Policy', 'no-referrer');
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-  }
+  const requestId = request.headers.get('x-request-id') || crypto.randomUUID();
+  response.headers.set('x-request-id', requestId);
+  applySecurityHeaders(request.nextUrl.pathname, response.headers, {
+    productionHttps: productionHttpsOrigin(process.env.APP_ORIGIN),
+  });
   return response;
 }
 
 export const config = {
-  matcher: ['/report-access/:path*', '/api/public/:path*'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$).*)',
+  ],
 };

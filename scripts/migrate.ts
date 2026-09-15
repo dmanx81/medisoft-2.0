@@ -1,10 +1,11 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { Pool } from 'pg';
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+import { Pool, type PoolClient } from 'pg';
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
-const client = await pool.connect();
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+let client: PoolClient | undefined;
 try {
+  client = await pool.connect();
   await client.query('SELECT pg_advisory_lock(20260910)');
   await client.query(
     'CREATE TABLE IF NOT EXISTS schema_migrations(name text PRIMARY KEY,checksum text NOT NULL,applied_at timestamptz NOT NULL DEFAULT now())',
@@ -48,7 +49,9 @@ try {
   );
   process.exitCode = 1;
 } finally {
-  await client.query('SELECT pg_advisory_unlock(20260910)');
-  client.release();
+  if (client) {
+    await client.query('SELECT pg_advisory_unlock(20260910)');
+    client.release();
+  }
   await pool.end();
 }

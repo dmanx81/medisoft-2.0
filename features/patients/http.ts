@@ -4,6 +4,7 @@ import { can, type Permission, type Principal } from '@/lib/auth/permissions';
 import { validOrigin } from '@/lib/validation';
 import { environment } from '@/lib/env';
 import { PatientError } from './types';
+import { logUnexpectedFailure } from '@/lib/log';
 export async function patientApi(
   request: Request,
   permission: Permission,
@@ -40,6 +41,7 @@ export async function patientApi(
         },
         error.status,
       );
+    logUnexpectedFailure('patients');
     return reply(
       {
         code: 'UNAVAILABLE',

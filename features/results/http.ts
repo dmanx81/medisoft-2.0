@@ -6,6 +6,7 @@ import { environment } from '@/lib/env';
 import { OrderError } from '@/features/orders/types';
 import { ResultError } from './types';
 import { ReportError } from '@/features/reports/types';
+import { logUnexpectedFailure } from '@/lib/log';
 export async function resultApi(
   request: Request,
   permission: Permission,
@@ -45,6 +46,7 @@ export async function resultApi(
         },
         error.status,
       );
+    logUnexpectedFailure('results');
     return reply(
       {
         code: 'UNAVAILABLE',

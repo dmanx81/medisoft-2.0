@@ -28,6 +28,35 @@ export const organizationSchema = z.object({
 export function validOrigin(origin: string | null, expected: string): boolean {
   return origin === expected;
 }
+
+export type RequestOriginHeaders = {
+  origin: string | null;
+  secFetchSite?: string | null;
+  forwardedProto?: string | null;
+  forwardedHost?: string | null;
+};
+
+function forwardedOrigin(
+  proto: string | null | undefined,
+  host: string | null | undefined,
+) {
+  if (!proto || !host) return null;
+  if (proto.includes(',') || host.includes(',') || proto.includes(' ') || host.includes(' '))
+    return null;
+  return `${proto}://${host}`;
+}
+
+export function validRequestOrigin(
+  headers: RequestOriginHeaders,
+  expected: string,
+): boolean {
+  if (validOrigin(headers.origin, expected)) return true;
+  return (
+    headers.origin === 'null' &&
+    headers.secFetchSite === 'same-origin' &&
+    forwardedOrigin(headers.forwardedProto, headers.forwardedHost) === expected
+  );
+}
 export function validSessionToken(value: string | undefined): value is string {
   return !!value && /^[a-f0-9]{64}$/.test(value);
 }

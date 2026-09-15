@@ -6,6 +6,7 @@ import {
   readReportBody,
 } from '@/features/reports/http';
 import { shareCookie, verifyPublicShare } from '@/features/reports/shares';
+import { sessionCookieOptions } from '@/lib/http/cookies';
 export const runtime = 'nodejs';
 type Context = { params: Promise<{ token: string }> };
 export function DELETE() {
@@ -39,16 +40,17 @@ export async function POST(request: Request, { params }: Context) {
             },
           },
         );
-        response.cookies.set(shareCookie, verified.sessionToken, {
-          httpOnly: true,
-          secure: environment().NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: Math.max(
-            60,
-            Math.floor((verified.expiresAt.getTime() - Date.now()) / 1000),
+        response.cookies.set(
+          shareCookie,
+          verified.sessionToken,
+          sessionCookieOptions(
+            environment().NODE_ENV === 'production',
+            Math.max(
+              60,
+              Math.floor((verified.expiresAt.getTime() - Date.now()) / 1000),
+            ),
           ),
-        });
+        );
         return response;
       } finally {
         client.release();

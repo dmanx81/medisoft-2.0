@@ -6,6 +6,7 @@ import { environment } from '@/lib/env';
 import { OrderError } from '@/features/orders/types';
 import { ResultError } from '@/features/results/types';
 import { ReportError } from './types';
+import { logUnexpectedFailure } from '@/lib/log';
 export async function reportApi(
   request: Request,
   permission: Permission,
@@ -45,6 +46,7 @@ export async function reportApi(
         },
         error.status,
       );
+    logUnexpectedFailure('reports');
     return reply(
       {
         code: 'UNAVAILABLE',
@@ -97,6 +99,7 @@ export async function reportPdfApi(
         },
         error.status,
       );
+    logUnexpectedFailure('reports');
     return reply(
       {
         code: 'UNAVAILABLE',
@@ -160,6 +163,7 @@ export async function publicShareApi(
         },
         error.status,
       );
+    logUnexpectedFailure('report-share');
     return reply(
       {
         code: 'UNAVAILABLE',
@@ -192,6 +196,7 @@ export async function publicSharePdfApi(
         },
         error.status,
       );
+    logUnexpectedFailure('report-share');
     return reply(
       {
         code: 'UNAVAILABLE',

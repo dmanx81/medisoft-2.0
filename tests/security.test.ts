@@ -6,6 +6,7 @@ import {
   loginSchema,
   organizationSchema,
   validOrigin,
+  validRequestOrigin,
   validSessionToken,
 } from '../lib/validation';
 import { parseEnvironment } from '../lib/env';
@@ -147,17 +148,65 @@ void test('origin and session validation fail closed', () => {
     assert.equal(validSessionToken(token), false);
   assert.equal(validSessionToken(newSession().token), true);
 });
-void test('production rejects demo fixtures and non-HTTPS origins without exposing secrets', () => {
+void test('request origin accepts same-origin null Origin only behind a matching HTTPS proxy', () => {
+  const expected = 'https://medisoftlabs.online';
+  const matchingProxy = {
+    origin: 'null',
+    secFetchSite: 'same-origin',
+    forwardedProto: 'https',
+    forwardedHost: 'medisoftlabs.online',
+  };
+  assert.equal(validRequestOrigin({ origin: expected }, expected), true);
+  assert.equal(validRequestOrigin(matchingProxy, expected), true);
+  assert.equal(
+    validRequestOrigin({ ...matchingProxy, secFetchSite: 'cross-site' }, expected),
+    false,
+  );
+  assert.equal(
+    validRequestOrigin(
+      { ...matchingProxy, forwardedHost: 'evil.example' },
+      expected,
+    ),
+    false,
+  );
+  assert.equal(
+    validRequestOrigin({ ...matchingProxy, forwardedProto: 'http' }, expected),
+    false,
+  );
+  assert.equal(validRequestOrigin({ origin: null }, expected), false);
+  assert.equal(
+    validRequestOrigin({ origin: 'https://evil.test' }, expected),
+    false,
+  );
+  assert.equal(
+    validRequestOrigin({ ...matchingProxy, secFetchSite: 'same-site' }, expected),
+    false,
+  );
+  assert.equal(
+    validRequestOrigin(
+      { origin: 'null', secFetchSite: 'same-origin' },
+      expected,
+    ),
+    false,
+  );
+});
+void test('production rejects demo fixtures, localhost origins and stub email without exposing secrets', () => {
   const config = {
-    DATABASE_URL: 'postgresql://user:secret@localhost/db',
+    DATABASE_URL:
+      'postgresql://medisoft_runtime:n3ver-use-this-in-git@db.internal/medisoft',
     APP_ORIGIN: 'https://app.test',
     NODE_ENV: 'production',
+    EMAIL_PROVIDER: 'disabled',
   };
   assert.equal(parseEnvironment(config).DASHBOARD_DEMO, 'false');
   assert.throws(() => parseEnvironment({ ...config, DASHBOARD_DEMO: 'true' }));
   assert.throws(() =>
     parseEnvironment({ ...config, APP_ORIGIN: 'http://app.test' }),
   );
+  assert.throws(() =>
+    parseEnvironment({ ...config, APP_ORIGIN: 'https://localhost' }),
+  );
+  assert.throws(() => parseEnvironment({ ...config, EMAIL_PROVIDER: 'stub' }));
   assert.throws(
     () => parseEnvironment({ ...config, DATABASE_URL: 'secret' }),
     (e) => e instanceof Error && !e.message.includes('secret'),
