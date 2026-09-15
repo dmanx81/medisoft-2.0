@@ -6,6 +6,7 @@ import {
   loginSchema,
   organizationSchema,
   validOrigin,
+  validRequestOrigin,
   validSessionToken,
 } from '../lib/validation';
 import { parseEnvironment } from '../lib/env';
@@ -146,6 +147,48 @@ void test('origin and session validation fail closed', () => {
   for (const token of [undefined, '', 'fake', 'a'.repeat(63), 'G'.repeat(64)])
     assert.equal(validSessionToken(token), false);
   assert.equal(validSessionToken(newSession().token), true);
+});
+void test('request origin accepts same-origin null Origin only behind a matching HTTPS proxy', () => {
+  const expected = 'https://medisoftlabs.online';
+  const matchingProxy = {
+    origin: 'null',
+    secFetchSite: 'same-origin',
+    forwardedProto: 'https',
+    forwardedHost: 'medisoftlabs.online',
+  };
+  assert.equal(validRequestOrigin({ origin: expected }, expected), true);
+  assert.equal(validRequestOrigin(matchingProxy, expected), true);
+  assert.equal(
+    validRequestOrigin({ ...matchingProxy, secFetchSite: 'cross-site' }, expected),
+    false,
+  );
+  assert.equal(
+    validRequestOrigin(
+      { ...matchingProxy, forwardedHost: 'evil.example' },
+      expected,
+    ),
+    false,
+  );
+  assert.equal(
+    validRequestOrigin({ ...matchingProxy, forwardedProto: 'http' }, expected),
+    false,
+  );
+  assert.equal(validRequestOrigin({ origin: null }, expected), false);
+  assert.equal(
+    validRequestOrigin({ origin: 'https://evil.test' }, expected),
+    false,
+  );
+  assert.equal(
+    validRequestOrigin({ ...matchingProxy, secFetchSite: 'same-site' }, expected),
+    false,
+  );
+  assert.equal(
+    validRequestOrigin(
+      { origin: 'null', secFetchSite: 'same-origin' },
+      expected,
+    ),
+    false,
+  );
 });
 void test('production rejects demo fixtures, localhost origins and stub email without exposing secrets', () => {
   const config = {

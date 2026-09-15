@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { database } from '@/lib/db';
 import { environment } from '@/lib/env';
-import { loginSchema, validOrigin } from '@/lib/validation';
+import { loginSchema, validRequestOrigin } from '@/lib/validation';
 import { authenticate } from '@/lib/auth/transactions';
 import { sessionCookie } from '@/lib/auth/session';
 import { sessionCookieOptions } from '@/lib/http/cookies';
@@ -10,7 +10,17 @@ export const runtime = 'nodejs';
 export async function POST(request: Request) {
   try {
     const config = environment();
-    if (!validOrigin(request.headers.get('origin'), config.APP_ORIGIN))
+    if (
+      !validRequestOrigin(
+        {
+          origin: request.headers.get('origin'),
+          secFetchSite: request.headers.get('sec-fetch-site'),
+          forwardedProto: request.headers.get('x-forwarded-proto'),
+          forwardedHost: request.headers.get('x-forwarded-host'),
+        },
+        config.APP_ORIGIN,
+      )
+    )
       return new Response('Forbidden', { status: 403 });
     // Bound actual bytes, including chunked requests, before parsing credentials.
     const reader = request.body?.getReader();
