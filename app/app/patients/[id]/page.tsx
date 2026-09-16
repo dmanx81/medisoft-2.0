@@ -49,15 +49,26 @@ export default async function PatientPage({
             {patient.phone || patient.email || 'No primary contact recorded'}
           </p>
         </div>
-        {can(user.role, 'patients:edit') && (
-          <Link
-            href={`/app/patients/${patient.id}/edit`}
-            prefetch={false}
-            className="rounded-md bg-teal px-4 py-2 text-sm font-medium text-white"
-          >
-            Edit patient
-          </Link>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {can(user.role, 'prescriptions:create') && (
+            <Link
+              href={`/app/patients/${patient.id}/prescriptions/new`}
+              prefetch={false}
+              className="rounded-md border border-line bg-white px-4 py-2 text-sm font-medium"
+            >
+              New prescription
+            </Link>
+          )}
+          {can(user.role, 'patients:edit') && (
+            <Link
+              href={`/app/patients/${patient.id}/edit`}
+              prefetch={false}
+              className="rounded-md bg-teal px-4 py-2 text-sm font-medium text-white"
+            >
+              Edit patient
+            </Link>
+          )}
+        </div>
       </header>
       <PatientDetail
         patient={patient}
@@ -65,6 +76,8 @@ export default async function PatientPage({
         canReadOrders={can(user.role, 'orders:read')}
         canCreateOrders={can(user.role, 'orders:create')}
         canReadBilling={can(user.role, 'billing:read')}
+        canReadPrescriptions={can(user.role, 'prescriptions:read')}
+        canCreatePrescriptions={can(user.role, 'prescriptions:create')}
       />
     </div>
   );

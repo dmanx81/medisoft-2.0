@@ -43,6 +43,9 @@ const { reportApi, publicShareApi } = await import(
   '../../features/reports/http'
 );
 const { billingApi } = await import('../../features/billing/http');
+const { doctorApi } = await import('../../features/doctors/http');
+const { prescriptionApi } = await import('../../features/prescriptions/http');
+const { brandingApi } = await import('../../features/branding/http');
 const { POST: logout } = await import('../../app/api/auth/logout/route');
 
 const trustedNull = {
@@ -128,6 +131,15 @@ void test('mutation wrappers and logout accept trusted Origin:null and reject CS
   );
   await assertWrapper('billing', (request) =>
     billingApi(request, 'billing:create', async () => ({ ok: true })),
+  );
+  await assertWrapper('doctors', (request) =>
+    doctorApi(request, 'doctors:manage', async () => ({ ok: true })),
+  );
+  await assertWrapper('prescriptions', (request) =>
+    prescriptionApi(request, 'prescriptions:create', async () => ({ ok: true })),
+  );
+  await assertWrapper('branding', (request) =>
+    brandingApi(request, 'settings:edit', async () => ({ ok: true })),
   );
   await assertWrapper(
     'public share verify',

@@ -5,10 +5,16 @@ export interface Organization {
   slug: string;
   type: 'LABORATORY' | 'CLINIC' | 'DIAGNOSTIC_CENTER';
   logo: string | null;
+  logoAssetId: string | null;
+  legalName: string;
   address: string | null;
+  city: string;
+  postalCode: string;
+  country: string;
   phone: string | null;
   email: string | null;
-  country: string;
+  website: string;
+  registrationNumber: string;
   timezone: string;
   defaultLanguage: 'en' | 'sq';
   aiEnabled: boolean;
