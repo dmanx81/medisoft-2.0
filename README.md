@@ -13,6 +13,7 @@ cp .env.example .env.local
 # PostgreSQL can run independently, or use the Compose database:
 docker compose --env-file .env.local up -d db
 node --env-file=.env.local --import tsx scripts/migrate.ts
+# Local development may omit MIGRATION_DATABASE_URL; production must set it.
 # Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD (14+ characters) in .env.local.
 node --env-file=.env.local --import tsx scripts/seed.ts --dry-run
 node --env-file=.env.local --import tsx scripts/seed.ts
@@ -41,7 +42,7 @@ The application uses standard **Next.js on Node + PostgreSQL**, independent of c
 
 The original scripts are retained as `dev:sites`, `build:sites`, `start:sites`, alongside Sites/Vinext/Cloudflare configuration for deployment history. `dev`, `build`, `start` now use standard Next.js; the explicit `:node` aliases do the same. They are **not the supported PostgreSQL application deployment**; use the standard or `:node` scripts for Phase 1. Hosted Sites cannot use this application's direct PostgreSQL connection. Do not publish this application through the old Sites pipeline.
 
-Before deploying, configure HTTPS `APP_ORIGIN`, a production database, migration-owner and limited runtime credentials. Docker app DATABASE_URL uses hostname `db`; host-side migrations use `localhost`. Run migrations explicitly against the target database before starting the app. Do not run the development seed in production. Initial production account provisioning, recovery/invitations and MFA need an audited operator workflow before customer onboarding.
+Before deploying, configure HTTPS `APP_ORIGIN`, a production database, `MIGRATION_DATABASE_URL` for the schema owner, and `DATABASE_URL` for the limited runtime role. Docker app `DATABASE_URL` uses hostname `db`; host-side migrations use `localhost` and must not use the runtime role. Run migrations explicitly against the target database before starting the app. Do not run the development seed in production. Initial production account provisioning, recovery/invitations and MFA need an audited operator workflow before customer onboarding.
 
 ```sh
 # With deployment-specific environment values already set:

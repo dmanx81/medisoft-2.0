@@ -4,6 +4,7 @@ const nodeEnv = z.enum(['development', 'test', 'production']).default('developme
 const emailProvider = z.enum(['stub', 'smtp', 'disabled']);
 const allowlistedKeys = [
   'DATABASE_URL',
+  'MIGRATION_DATABASE_URL',
   'APP_ORIGIN',
   'NODE_ENV',
   'DASHBOARD_DEMO',
@@ -40,6 +41,7 @@ const placeholderSecrets = new Set([
 
 const schema = z.object({
   DATABASE_URL: z.string(),
+  MIGRATION_DATABASE_URL: z.string().optional(),
   APP_ORIGIN: z.string(),
   NODE_ENV: nodeEnv,
   DASHBOARD_DEMO: z.enum(['true', 'false']).default('false'),
@@ -142,6 +144,9 @@ export function parseEnvironment(values: Record<string, string | undefined>) {
   const input = parsed.data;
   const database = postgresUrl(input.DATABASE_URL);
   if (!database) addIssue(keys, 'DATABASE_URL');
+  const migrationUrl = input.MIGRATION_DATABASE_URL?.trim() ?? '';
+  const migration = migrationUrl ? postgresUrl(migrationUrl) : null;
+  if (migrationUrl && !migration) addIssue(keys, 'MIGRATION_DATABASE_URL');
   const origin = originUrl(input.APP_ORIGIN);
   if (!origin || origin.origin !== input.APP_ORIGIN) addIssue(keys, 'APP_ORIGIN');
   const provider =
@@ -153,6 +158,11 @@ export function parseEnvironment(values: Record<string, string | undefined>) {
     if (input.DASHBOARD_DEMO === 'true') addIssue(keys, 'DASHBOARD_DEMO');
     if (database && isPlaceholderSecret(decodeURIComponent(database.password)))
       addIssue(keys, 'DATABASE_URL');
+    if (
+      migration &&
+      isPlaceholderSecret(decodeURIComponent(migration.password))
+    )
+      addIssue(keys, 'MIGRATION_DATABASE_URL');
     if (provider === 'stub') addIssue(keys, 'EMAIL_PROVIDER');
   }
   if (provider === 'smtp') {

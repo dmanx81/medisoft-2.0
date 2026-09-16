@@ -5,6 +5,7 @@ import { hashPassword } from '../lib/auth/password';
 import { organizationSchema, loginSchema } from '../lib/validation';
 if (process.env.NODE_ENV === 'production')
   throw new Error('Development seed is disabled in production');
+// Seed writes application rows, not DDL. Use the runtime DATABASE_URL.
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
 const credentials = loginSchema.safeParse({
   email: process.env.SEED_ADMIN_EMAIL,

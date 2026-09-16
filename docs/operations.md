@@ -20,7 +20,8 @@ Copy `.env.example`. Never commit real values.
 | Variable | Production requirement |
 | --- | --- |
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | PostgreSQL URL with a non-placeholder password. Runtime should use a limited role. Localhost is allowed for a same-host VPS database; do not expose PostgreSQL publicly. |
+| `DATABASE_URL` | PostgreSQL URL with a non-placeholder password. Runtime should use a limited role (`medisoft_app` / `medisoft_runtime`). Localhost is allowed for a same-host VPS database; do not expose PostgreSQL publicly. |
+| `MIGRATION_DATABASE_URL` | Schema-owner PostgreSQL URL. Required for `npm run db:migrate`, `db:backup` and `db:restore` when `NODE_ENV=production`. Never the runtime role. Do not inject this into the application process. |
 | `APP_ORIGIN` | Exact public HTTPS origin, no path or trailing slash. Localhost, `.local` and HTTP are rejected. |
 | `DASHBOARD_DEMO` | Must be `false` |
 | `EMAIL_PROVIDER` | `smtp` or `disabled`. `stub` is rejected. |
@@ -84,15 +85,19 @@ Do not grant DDL, table ownership, `TRUNCATE`, or `UPDATE`/`DELETE` on audit or 
 
 ## Migration execution
 
-Migrations never run on application startup. Apply them explicitly with the owner URL:
+Migrations never run on application startup. Apply them explicitly with the schema-owner URL. `scripts/migrate.ts` uses `MIGRATION_DATABASE_URL` when set. In production it **does not** fall back to `DATABASE_URL` (the runtime role cannot run DDL). Local development may omit `MIGRATION_DATABASE_URL` and use `DATABASE_URL`.
 
 ```sh
-DATABASE_URL=postgresql://medisoft_owner:OWNER_PASSWORD@db-host/medisoft npm run db:migrate
+NODE_ENV=production \
+MIGRATION_DATABASE_URL=postgresql://medisoft_owner:OWNER_PASSWORD@db-host/medisoft \
+npm run db:migrate
 ```
 
 The runner records SHA-256 checksums in `schema_migrations` and is a no-op when files are unchanged. Do not edit migrations `001`–`010`. Re-running after a successful apply must print nothing new.
 
-Startup order: empty PostgreSQL → migrate → runtime grants → start the Node server.
+Always set `NODE_ENV=production` for production migrate/backup/restore so the scripts cannot fall back to the runtime `DATABASE_URL`. Do not put `MIGRATION_DATABASE_URL` in the application process or Compose `app` environment.
+
+Startup order: empty PostgreSQL → migrate → runtime grants → start the Node server. The application uses `DATABASE_URL` only.
 
 ## Persistent storage
 
@@ -183,7 +188,8 @@ Custom-format `pg_dump` (compressed) with timestamped names. Passwords stay in t
 
 ```sh
 BACKUP_DIR=/var/backups/medisoft \
-DATABASE_URL=postgresql://medisoft_owner:OWNER_PASSWORD@127.0.0.1:5432/medisoft \
+NODE_ENV=production \
+MIGRATION_DATABASE_URL=postgresql://medisoft_owner:OWNER_PASSWORD@127.0.0.1:5432/medisoft \
 npm run db:backup
 ```
 
@@ -206,7 +212,8 @@ Restores are destructive and never automatic.
 ```sh
 CONFIRM_RESTORE=YES \
 BACKUP_FILE=/var/backups/medisoft/medisoft-stamp.dump \
-DATABASE_URL=postgresql://medisoft_owner:OWNER_PASSWORD@127.0.0.1:5432/medisoft_restore \
+NODE_ENV=production \
+MIGRATION_DATABASE_URL=postgresql://medisoft_owner:OWNER_PASSWORD@127.0.0.1:5432/medisoft_restore \
 npm run db:restore
 ```
 
@@ -229,7 +236,7 @@ Roll back by restoring the pre-upgrade backup onto a replacement database and st
 
 ## Logging
 
-JSON lines to stdout/stderr: `ts`, `level`, `message`, allowlisted context. `lib/log.ts` redacts passwords, tokens, cookies, `DATABASE_URL` and SMTP URLs. Unexpected handler failures log an area name only, not SQL or request bodies. `instrumentation.ts` `onRequestError` logs error name, digest, method, path and `x-request-id`.
+JSON lines to stdout/stderr: `ts`, `level`, `message`, allowlisted context. `lib/log.ts` redacts passwords, tokens, cookies, `DATABASE_URL`, `MIGRATION_DATABASE_URL` and SMTP URLs. Unexpected handler failures log an area name only, not SQL or request bodies. `instrumentation.ts` `onRequestError` logs error name, digest, method, path and `x-request-id`.
 
 Inspect with `docker compose logs -f app` or the process manager journal. Never grep logs for raw session cookies or PINs; those values are not written.
 
@@ -238,6 +245,7 @@ Inspect with `docker compose logs -f app` or the process manager journal. Never 
 | Symptom | Check |
 | --- | --- |
 | Process exits at start | `scripts/check-config.ts`; production `APP_ORIGIN` must be HTTPS and not localhost |
+| `db:migrate` exits before connecting | Production requires `MIGRATION_DATABASE_URL` (schema owner). `DATABASE_URL` (`medisoft_app`) cannot run DDL. Do not grant the runtime role `CREATE`/`ALTER`/`DROP`. |
 | `/api/ready` is 503 | PostgreSQL connectivity and runtime grants; the JSON body never includes the driver error |
 | Login or mutation 403 | Exact `Origin` must equal `APP_ORIGIN`, or literal `Origin: null` with `Sec-Fetch-Site: same-origin` and forwarded proto/host reconstructing `APP_ORIGIN` |
 | Login 503 | Database down or configuration invalid; generic body only |
