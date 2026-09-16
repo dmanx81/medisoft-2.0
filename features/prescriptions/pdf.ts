@@ -56,7 +56,8 @@ export function renderPrescriptionPdf(
     doc.on('error', reject);
     const left = MARGIN;
     const width = doc.page.width - MARGIN * 2;
-    const bottom = () => doc.page.height - MARGIN - 28;
+    const footerReserve = 36;
+    const bottom = () => doc.page.height - MARGIN - footerReserve;
 
     function banner() {
       if (options?.cancelled) {
@@ -244,6 +245,8 @@ export function renderPrescriptionPdf(
     const range = doc.bufferedPageRange();
     for (let i = 0; i < range.count; i += 1) {
       doc.switchToPage(range.start + i);
+      const previousBottom = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
       const footerY = doc.page.height - 26;
       doc.moveTo(MARGIN, footerY - 8).lineTo(doc.page.width - MARGIN, footerY - 8)
         .strokeColor(LINE).stroke();
@@ -256,12 +259,14 @@ export function renderPrescriptionPdf(
         ]),
         MARGIN,
         footerY - 4,
-        { width: width - 70 },
+        { width: width - 70, lineBreak: false },
       );
       doc.text(`Page ${i + 1} of ${range.count}`, MARGIN, footerY - 4, {
         width,
         align: 'right',
+        lineBreak: false,
       });
+      doc.page.margins.bottom = previousBottom;
     }
     doc.end();
   });

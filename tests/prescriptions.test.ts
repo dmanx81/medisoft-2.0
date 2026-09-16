@@ -320,6 +320,10 @@ void test('prescription lifecycle, immutability, numbering, isolation and A5 PDF
     assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
     assert.equal(filename, `${finalized.prescription_number}.pdf`);
     assert.match(pdf.toString('latin1'), /\/MediaBox \[0 0 419\.53 595\.28\]/);
+    assert.equal(
+      [...pdf.toString('latin1').matchAll(/\/MediaBox \[0 0 419\.53 595\.28\]/g)].length,
+      1,
+    );
     const text = pdfText(pdf);
     assert.match(text, /Alpha Clinic/);
     assert.match(text, /PRESCRIPTION/);
