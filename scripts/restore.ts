@@ -1,6 +1,10 @@
 import { access } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { postgresClientEnv } from '../lib/db/postgres-cli';
+import {
+  administrativeDatabaseUrl,
+  missingAdministrativeUrlMessage,
+} from '../lib/db/administrative-url';
 
 if (process.env.CONFIRM_RESTORE !== 'YES') {
   console.error(
@@ -8,8 +12,11 @@ if (process.env.CONFIRM_RESTORE !== 'YES') {
   );
   process.exit(1);
 }
-if (!process.env.DATABASE_URL) {
-  console.error('DATABASE_URL is required. No credentials are logged.');
+let connection: ReturnType<typeof administrativeDatabaseUrl>;
+try {
+  connection = administrativeDatabaseUrl(process.env);
+} catch {
+  console.error(missingAdministrativeUrlMessage);
   process.exit(1);
 }
 const backupFile = process.env.BACKUP_FILE;
@@ -26,9 +33,11 @@ try {
 
 let env: ReturnType<typeof postgresClientEnv>;
 try {
-  env = postgresClientEnv(process.env.DATABASE_URL);
+  env = postgresClientEnv(connection.url);
 } catch {
-  console.error('DATABASE_URL is not a valid PostgreSQL URL. No credentials are logged.');
+  console.error(
+    'The administrative database URL is not a valid PostgreSQL URL. No credentials are logged.',
+  );
   process.exit(1);
 }
 

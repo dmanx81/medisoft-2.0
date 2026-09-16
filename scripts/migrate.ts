@@ -1,8 +1,20 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { Pool, type PoolClient } from 'pg';
-if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+import {
+  administrativeDatabaseUrl,
+  missingAdministrativeUrlMessage,
+} from '../lib/db/administrative-url';
+
+let url: string;
+try {
+  url = administrativeDatabaseUrl(process.env).url;
+} catch {
+  console.error(missingAdministrativeUrlMessage);
+  process.exit(1);
+}
+
+const pool = new Pool({ connectionString: url });
 let client: PoolClient | undefined;
 try {
   client = await pool.connect();

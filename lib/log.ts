@@ -1,7 +1,7 @@
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 const secretKey =
-  /pass(word|phrase)?|secret|token|cookie|authorization|database_url|smtp(_url|_password)?|set-cookie|session/i;
+  /pass(word|phrase)?|secret|token|cookie|authorization|database_url|migration_database_url|smtp(_url|_password)?|set-cookie|session/i;
 
 function currentLevel(): LogLevel {
   const value = process.env.LOG_LEVEL;

@@ -4,6 +4,10 @@ import { readdir, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { PGlite } from '@electric-sql/pglite';
 import { parseEnvironment, isPlaceholderSecret } from '../lib/env';
+import {
+  AdministrativeDatabaseUrlError,
+  administrativeDatabaseUrl,
+} from '../lib/db/administrative-url';
 import { redact } from '../lib/log';
 import {
   applySecurityHeaders,
@@ -96,6 +100,7 @@ void test('development still accepts local HTTP origins and the stub mailer', ()
 void test('logs redact credentials, tokens and connection strings', () => {
   const hidden = redact({
     DATABASE_URL: 'postgresql://user:hunter2@db/medisoft',
+    MIGRATION_DATABASE_URL: 'postgresql://owner:hunter2@db/medisoft',
     SMTP_URL: 'smtps://mailer:hunter2@smtp.internal:465',
     SMTP_PASSWORD: 'hunter2',
     cookie: 'medisoft_session=abc',
@@ -103,6 +108,7 @@ void test('logs redact credentials, tokens and connection strings', () => {
     note: 'ordinary',
   }) as Record<string, unknown>;
   assert.equal(hidden.DATABASE_URL, '[redacted]');
+  assert.equal(hidden.MIGRATION_DATABASE_URL, '[redacted]');
   assert.equal(hidden.SMTP_URL, '[redacted]');
   assert.equal(hidden.SMTP_PASSWORD, '[redacted]');
   assert.equal(hidden.cookie, '[redacted]');
@@ -270,4 +276,118 @@ void test('restore script refuses to run without an explicit confirmation', () =
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Refusing to restore/);
   assert.doesNotMatch(result.stderr, /super-secret-db-password/);
+});
+
+void test('administrative scripts prefer MIGRATION_DATABASE_URL and fail closed in production', () => {
+  const runtime =
+    'postgresql://medisoft_app:super-secret-app-password@127.0.0.1/medisoft_production';
+  const owner =
+    'postgresql://medisoft_owner:super-secret-owner-password@127.0.0.1/medisoft_production';
+  assert.deepEqual(
+    administrativeDatabaseUrl({
+      NODE_ENV: 'development',
+      DATABASE_URL: runtime,
+      MIGRATION_DATABASE_URL: owner,
+    }),
+    { url: owner, source: 'MIGRATION_DATABASE_URL' },
+  );
+  assert.deepEqual(
+    administrativeDatabaseUrl({
+      NODE_ENV: 'development',
+      DATABASE_URL: runtime,
+    }),
+    { url: runtime, source: 'DATABASE_URL' },
+  );
+  assert.deepEqual(
+    administrativeDatabaseUrl({
+      NODE_ENV: 'production',
+      DATABASE_URL: runtime,
+      MIGRATION_DATABASE_URL: owner,
+    }),
+    { url: owner, source: 'MIGRATION_DATABASE_URL' },
+  );
+  assert.throws(
+    () =>
+      administrativeDatabaseUrl({
+        NODE_ENV: 'production',
+        DATABASE_URL: runtime,
+      }),
+    (error: unknown) =>
+      error instanceof AdministrativeDatabaseUrlError &&
+      /MIGRATION_DATABASE_URL is required in production/.test(error.message) &&
+      !error.message.includes('super-secret-app-password'),
+  );
+  assert.throws(
+    () =>
+      administrativeDatabaseUrl({
+        NODE_ENV: 'production',
+        DATABASE_URL: runtime,
+        MIGRATION_DATABASE_URL: '   ',
+      }),
+    AdministrativeDatabaseUrlError,
+  );
+  assert.throws(
+    () =>
+      administrativeDatabaseUrl({
+        NODE_ENV: 'production',
+        DATABASE_URL: runtime,
+        MIGRATION_DATABASE_URL: runtime,
+      }),
+    (error: unknown) =>
+      error instanceof AdministrativeDatabaseUrlError &&
+      /must be the schema-owner connection/.test(error.message) &&
+      !error.message.includes('super-secret-app-password'),
+  );
+  assert.throws(
+    () =>
+      administrativeDatabaseUrl({
+        NODE_ENV: 'production',
+        MIGRATION_DATABASE_URL:
+          'postgresql://medisoft_owner:leaked-owner-secret@',
+      }),
+    (error: unknown) =>
+      error instanceof AdministrativeDatabaseUrlError &&
+      !String(error.message).includes('leaked-owner-secret'),
+  );
+  const appConfig = parseEnvironment({
+    ...productionBase,
+    DATABASE_URL: runtime,
+  });
+  assert.equal(appConfig.DATABASE_URL, runtime);
+  assert.equal('MIGRATION_DATABASE_URL' in appConfig, false);
+  assert.throws(
+    () =>
+      parseEnvironment({
+        ...productionBase,
+        MIGRATION_DATABASE_URL:
+          'postgresql://medisoft_owner:replace-with-local-password@db.internal/medisoft',
+      }),
+    (error: unknown) =>
+      error instanceof Error &&
+      /Invalid server configuration/.test(error.message) &&
+      /MIGRATION_DATABASE_URL/.test(error.message) &&
+      !error.message.includes('replace-with-local-password'),
+  );
+});
+
+void test('production migrate refuses DATABASE_URL fallback without leaking credentials', () => {
+  const secret = 'super-secret-app-password';
+  const env = { ...process.env };
+  delete env.MIGRATION_DATABASE_URL;
+  env.NODE_ENV = 'production';
+  env.DATABASE_URL = `postgresql://medisoft_app:${secret}@127.0.0.1/medisoft_production`;
+  const result = spawnSync(
+    process.execPath,
+    ['--import', 'tsx', 'scripts/migrate.ts'],
+    {
+      env,
+      encoding: 'utf8',
+      timeout: 15000,
+    },
+  );
+  assert.notEqual(result.status, 0);
+  const output = `${result.stdout}${result.stderr}`;
+  assert.match(output, /MIGRATION_DATABASE_URL/);
+  assert.doesNotMatch(output, new RegExp(secret));
+  assert.doesNotMatch(output, /medisoft_app/);
 });
