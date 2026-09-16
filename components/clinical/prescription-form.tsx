@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect } from '@/components/ui/native-select';
 import type {
   ClinicalDoctorSummary,
   ClinicalPrescription,
@@ -57,9 +56,9 @@ export function PrescriptionForm({
       if (!response.ok) return;
       const data = (await response.json()) as { doctors: ClinicalDoctorSummary[] };
       setDoctors(data.doctors);
-      if (!doctorId && data.doctors[0] && !lockDoctorId) setDoctorId(data.doctors[0].id);
+      setDoctorId((current) => current || lockDoctorId || data.doctors[0]?.id || '');
     })();
-  }, [doctorId, lockDoctorId]);
+  }, [lockDoctorId]);
   function changeItem(index: number, name: keyof PrescriptionItemInput, value: string) {
     setItems((current) =>
       current.map((item, itemIndex) =>
@@ -67,46 +66,47 @@ export function PrescriptionForm({
       ),
     );
   }
+  async function save() {
+    setSaving(true);
+    setFailure(null);
+    try {
+      const payload = {
+        patient_id: patientId,
+        doctor_id: doctorId,
+        prescribed_on: prescribedOn,
+        clinical_note: clinicalNote,
+        instructions,
+        items: items.filter((item) => item.medication_name.trim()),
+        version: initial?.version,
+      };
+      const response = await fetch(
+        initial
+          ? `/api/clinical-prescriptions/${initial.id}`
+          : '/api/clinical-prescriptions',
+        {
+          method: initial ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          cache: 'no-store',
+        },
+      );
+      const body = (await response.json()) as Failure & ClinicalPrescription;
+      if (!response.ok) {
+        setFailure(body);
+        return;
+      }
+      router.push(`/app/prescriptions/${body.id}`);
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
     <form
       className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        setSaving(true);
-        setFailure(null);
-        void (async () => {
-          try {
-            const payload = {
-              patient_id: patientId,
-              doctor_id: doctorId,
-              prescribed_on: prescribedOn,
-              clinical_note: clinicalNote,
-              instructions,
-              items: items.filter((item) => item.medication_name.trim()),
-              version: initial?.version,
-            };
-            const response = await fetch(
-              initial
-                ? `/api/clinical-prescriptions/${initial.id}`
-                : '/api/clinical-prescriptions',
-              {
-                method: initial ? 'PATCH' : 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                cache: 'no-store',
-              },
-            );
-            const body = (await response.json()) as Failure & ClinicalPrescription;
-            if (!response.ok) {
-              setFailure(body);
-              return;
-            }
-            router.push(`/app/prescriptions/${body.id}`);
-            router.refresh();
-          } finally {
-            setSaving(false);
-          }
-        })();
+        void save();
       }}
     >
       {failure && (
@@ -114,25 +114,46 @@ export function PrescriptionForm({
           {failure.message || 'The prescription could not be saved.'}
         </p>
       )}
-      <label className="text-sm font-medium" htmlFor="rx-doctor">
-        Prescribing doctor
-        <NativeSelect
-          id="rx-doctor"
-          className="mt-2"
-          value={doctorId}
-          disabled={!!lockDoctorId}
-          onChange={(event) => setDoctorId(event.target.value)}
-          required
-        >
-          <option value="">Select doctor</option>
-          {doctors.map((doctor) => (
-            <option key={doctor.id} value={doctor.id}>
-              {doctor.display_name}
-              {doctor.specialty ? ` — ${doctor.specialty}` : ''}
-            </option>
-          ))}
-        </NativeSelect>
-      </label>
+      <fieldset className="grid gap-2">
+        <legend className="text-sm font-medium">Prescribing doctor</legend>
+        {lockDoctorId ? (
+          <p className="text-sm text-slate">
+            Prescribing doctor is taken from your clinical staff profile.
+          </p>
+        ) : (
+          <>
+            {doctors.length === 0 && (
+              <p className="text-sm text-slate">
+                No active doctor profiles are available. Create a doctor profile
+                first.
+              </p>
+            )}
+            {doctors.map((doctor) => (
+              <label
+                key={doctor.id}
+                className="flex cursor-pointer items-start gap-3 rounded-md border border-line px-3 py-2 text-sm"
+              >
+                <input
+                  type="radio"
+                  name="rx-doctor"
+                  className="mt-1"
+                  value={doctor.id}
+                  checked={doctorId === doctor.id}
+                  onChange={() => setDoctorId(doctor.id)}
+                  required
+                  aria-label={doctor.display_name}
+                />
+                <span>
+                  {doctor.display_name}
+                  {doctor.specialty ? (
+                    <span className="block text-slate">{doctor.specialty}</span>
+                  ) : null}
+                </span>
+              </label>
+            ))}
+          </>
+        )}
+      </fieldset>
       <label className="text-sm font-medium" htmlFor="rx-date">
         Prescription date
         <Input
@@ -197,6 +218,17 @@ export function PrescriptionForm({
                   onChange={(event) => changeItem(index, 'instructions', event.target.value)}
                 />
               </label>
+              {items.length > 1 && (
+                <button
+                  type="button"
+                  className="w-fit text-sm text-coral"
+                  onClick={() =>
+                    setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))
+                  }
+                >
+                  Remove medication
+                </button>
+              )}
             </fieldset>
           ))}
         </div>

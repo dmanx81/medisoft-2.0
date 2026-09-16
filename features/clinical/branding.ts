@@ -3,7 +3,7 @@ import { can, type Permission, type Principal } from '@/lib/auth/permissions';
 import { brandingSchema, fieldErrors } from './validation';
 import { ClinicalError, type OrganizationBranding } from './types';
 import { clinicalTransaction } from './transaction';
-import { assertSafeImage } from './image';
+import { asBytea, assertSafeImage } from './image';
 
 function permit(principal: Principal, permission: Permission) {
   if (!principal.organizationId || !can(principal.role, permission))
@@ -58,7 +58,7 @@ export async function updateBranding(
   principal: Principal,
   input: unknown,
 ): Promise<OrganizationBranding> {
-  permit(principal, 'settings:read');
+  permit(principal, 'settings:edit');
   const parsed = brandingSchema.safeParse(input);
   if (!parsed.success)
     throw new ClinicalError(
@@ -95,7 +95,7 @@ export async function saveOrganizationLogo(
   principal: Principal,
   file: { type: string; bytes: Buffer; name?: string },
 ): Promise<OrganizationBranding> {
-  permit(principal, 'settings:read');
+  permit(principal, 'settings:edit');
   const image = await assertSafeImage(file);
   return clinicalTransaction(db, async () => {
     const existing = (
@@ -107,13 +107,13 @@ export async function saveOrganizationLogo(
     if (existing)
       await db.query(
         `UPDATE organization_assets SET content_type=$3,bytes=$4 WHERE organization_id=$1 AND id=$2`,
-        [principal.organizationId, existing.id, image.type, image.bytes],
+        [principal.organizationId, existing.id, image.type, asBytea(image.bytes)],
       );
     else
       await db.query(
         `INSERT INTO organization_assets(organization_id,kind,content_type,bytes,created_by)
  VALUES($1,'LOGO',$2,$3,$4)`,
-        [principal.organizationId, image.type, image.bytes, principal.userId],
+        [principal.organizationId, image.type, asBytea(image.bytes), principal.userId],
       );
     await audit(db, principal, 'ORGANIZATION_LOGO_UPDATED', {
       content_type: image.type,

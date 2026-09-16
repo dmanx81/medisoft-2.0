@@ -121,6 +121,7 @@ void test('prescription workflow exposes medications and A5 print actions', () =
   assert.ok(detail.includes('Print'));
   assert.ok(detail.includes('Download PDF'));
   assert.ok(detail.includes('/api/clinical-prescriptions/'));
+  assert.ok(detail.includes('mode=preview'));
 });
 
 void test('patient record prescriptions tab and branding form stay in the existing design', () => {
@@ -156,4 +157,24 @@ void test('patient record prescriptions tab and branding form stay in the existi
   );
   assert.ok(branding.includes('Clinical document branding'));
   assert.ok(branding.includes('Upload logo'));
+  const readonlyBranding = renderToStaticMarkup(
+    <BrandingForm
+      canEdit={false}
+      initial={{
+        name: 'Care',
+        legal_name: 'Care Centre',
+        address: '1 Care Street',
+        city: 'Tirana',
+        postal_code: '1001',
+        country: 'AL',
+        phone: '',
+        email: '',
+        website: '',
+        registration_number: '',
+        has_logo: false,
+      }}
+    />,
+  );
+  assert.ok(!readonlyBranding.includes('Save branding'));
+  assert.ok(!readonlyBranding.includes('Upload logo'));
 });

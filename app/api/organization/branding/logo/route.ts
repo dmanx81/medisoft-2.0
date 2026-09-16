@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   });
 }
 export async function POST(request: Request) {
-  return clinicalApi(request, 'settings:read', async (principal) => {
+  return clinicalApi(request, 'settings:edit', async (principal) => {
     const contentType = request.headers.get('content-type') || '';
     if (!contentType.startsWith('multipart/form-data'))
       throw new ClinicalError(415, 'INVALID_BODY', 'Upload the logo as a file.');

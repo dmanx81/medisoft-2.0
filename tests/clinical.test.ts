@@ -28,6 +28,7 @@ import {
 } from '../features/clinical/branding';
 import { ClinicalError } from '../features/clinical/types';
 import { pdfPageSize } from '../features/clinical/pdf';
+import { detectImageType } from '../features/clinical/image';
 import { doctorSchema } from '../features/clinical/validation';
 import type { Principal, Role } from '../lib/auth/permissions';
 
@@ -540,13 +541,88 @@ void test('finalized prescriptions render from frozen snapshots after live ident
       hasCode('VALIDATION'),
     );
     await assert.rejects(
+      saveOrganizationLogo(db, a, {
+        type: 'image/jpeg',
+        bytes: logo,
+        name: 'logo.jpg',
+      }),
+      hasCode('VALIDATION'),
+    );
+    await assert.rejects(
       getBranding(db, asRole(a, 'DOCTOR')),
+      hasCode('FORBIDDEN'),
+    );
+    await assert.rejects(
+      updateBranding(db, asRole(a, 'DOCTOR'), {
+        legal_name: 'Forbidden',
+        address: '',
+        city: '',
+        postal_code: '',
+        phone: '',
+        email: '',
+        website: '',
+        registration_number: '',
+      }),
+      hasCode('FORBIDDEN'),
+    );
+    await assert.rejects(
+      saveOrganizationLogo(db, asRole(a, 'RECEPTIONIST'), {
+        type: 'image/png',
+        bytes: logo,
+        name: 'logo.png',
+      }),
       hasCode('FORBIDDEN'),
     );
     await assert.rejects(
       getBranding(db, { ...a, organizationId: '00000000-0000-4000-8000-000000000099' }),
       hasCode('NOT_FOUND'),
     );
+  } finally {
+    await db.close();
+  }
+});
+
+void test('image magic bytes are detected independently of the declared type', () => {
+  assert.equal(
+    detectImageType(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0])),
+    'image/png',
+  );
+  assert.equal(detectImageType(Buffer.from([0xff, 0xd8, 0xff, 0xe0])), 'image/jpeg');
+  assert.equal(
+    detectImageType(
+      Buffer.concat([
+        Buffer.from('RIFF', 'ascii'),
+        Buffer.alloc(4),
+        Buffer.from('WEBP', 'ascii'),
+      ]),
+    ),
+    'image/webp',
+  );
+  assert.equal(detectImageType(Buffer.from('<svg></svg>')), null);
+});
+
+void test('short A5 prescriptions stay on a single page', async () => {
+  const { db, a, patientA } = await fixture();
+  try {
+    const doctor = await staffDoctor(db, a);
+    const draft = await createPrescription(db, a, {
+      patient_id: patientA.id,
+      doctor_id: doctor.id,
+      items: [item('Amoxicillin')],
+    });
+    const issued = await finalizePrescription(db, a, draft.id, {
+      version: draft.version,
+    });
+    const { pdf } = await downloadPrescriptionPdf(db, a, issued.id);
+    const size = pdfPageSize(pdf);
+    assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
+    assert.ok(Math.abs(size.width - 419.53) < 0.2);
+    assert.ok(Math.abs(size.height - 595.28) < 0.2);
+    assert.equal(pdfPageCount(pdf), 1);
+    const text = pdfText(pdf);
+    assert.match(text, /Amoxicillin/);
+    assert.match(text, new RegExp(issued.prescription_number));
+    assert.match(text, /page 1 of 1/i);
   } finally {
     await db.close();
   }

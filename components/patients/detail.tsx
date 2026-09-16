@@ -95,7 +95,7 @@ export function PatientDetail({
           </p>
         </TabsContent>
       ))}
-      <TabsContent value="Prescriptions" className="mt-4">
+      <TabsContent value="Prescriptions" className="mt-4" keepMounted>
         {canReadPrescriptions ? (
           <PatientPrescriptions
             patientId={patient.id}

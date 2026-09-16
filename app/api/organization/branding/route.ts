@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   );
 }
 export async function PATCH(request: Request) {
-  return clinicalApi(request, 'settings:read', async (principal) => {
+  return clinicalApi(request, 'settings:edit', async (principal) => {
     const body = await readClinicalBody(request);
     const client = await database().connect();
     try {

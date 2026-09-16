@@ -3,7 +3,13 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import type { OrganizationBranding } from '@/features/clinical/types';
 type Failure = { message?: string; fields?: Record<string, string> };
-export function BrandingForm({ initial }: { initial: OrganizationBranding }) {
+export function BrandingForm({
+  initial,
+  canEdit = true,
+}: {
+  initial: OrganizationBranding;
+  canEdit?: boolean;
+}) {
   const [values, setValues] = useState(initial);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [saved, setSaved] = useState(false);
@@ -14,6 +20,7 @@ export function BrandingForm({ initial }: { initial: OrganizationBranding }) {
         className="grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();
+          if (!canEdit) return;
           setBusy(true);
           setFailure(null);
           setSaved(false);
@@ -71,21 +78,25 @@ export function BrandingForm({ initial }: { initial: OrganizationBranding }) {
               onChange={(event) =>
                 setValues((current) => ({ ...current, [name]: event.target.value }))
               }
+              disabled={!canEdit}
             />
           </label>
         ))}
-        <button
-          type="submit"
-          className="w-fit rounded-md bg-teal px-4 py-2 text-sm font-medium text-white"
-          disabled={busy}
-        >
-          Save branding
-        </button>
+        {canEdit && (
+          <button
+            type="submit"
+            className="w-fit rounded-md bg-teal px-4 py-2 text-sm font-medium text-white"
+            disabled={busy}
+          >
+            Save branding
+          </button>
+        )}
       </form>
       <form
         className="grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();
+          if (!canEdit) return;
           const data = new FormData(event.currentTarget);
           setBusy(true);
           setFailure(null);
@@ -122,17 +133,28 @@ export function BrandingForm({ initial }: { initial: OrganizationBranding }) {
             className="h-16 w-auto"
           />
         )}
-        <label className="text-sm font-medium" htmlFor="branding-logo">
-          Upload logo
-          <Input id="branding-logo" className="mt-2" type="file" name="logo" accept="image/png,image/jpeg,image/webp" required />
-        </label>
-        <button
-          type="submit"
-          className="w-fit rounded-md border border-line px-4 py-2 text-sm"
-          disabled={busy}
-        >
-          Upload logo
-        </button>
+        {canEdit && (
+          <>
+            <label className="text-sm font-medium" htmlFor="branding-logo">
+              Upload logo
+              <Input
+                id="branding-logo"
+                className="mt-2"
+                type="file"
+                name="logo"
+                accept="image/png,image/jpeg,image/webp"
+                required
+              />
+            </label>
+            <button
+              type="submit"
+              className="w-fit rounded-md border border-line px-4 py-2 text-sm"
+              disabled={busy}
+            >
+              Upload logo
+            </button>
+          </>
+        )}
       </form>
     </div>
   );

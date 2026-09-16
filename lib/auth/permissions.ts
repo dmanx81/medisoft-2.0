@@ -54,6 +54,7 @@ export const permissions = [
   'tests:edit',
   'users:read',
   'settings:read',
+  'settings:edit',
 ] as const;
 export type Permission = (typeof permissions)[number];
 const grants: Record<Role, readonly Permission[]> = {
