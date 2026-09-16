@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { PGlite } from '@electric-sql/pglite';
@@ -253,6 +254,23 @@ void test('migrations 001 through 010 apply in order on an empty engine', async 
  ORDER BY relname`,
     );
     assert.equal(tables.rows.length, 10);
+    const checksum = createHash('sha256')
+      .update(
+        await readFile(
+          new URL('../db/migrations/010_clinical_prescriptions.sql', import.meta.url),
+        ),
+      )
+      .digest('hex');
+    assert.equal(
+      checksum,
+      '4388dbb32c734870b411f2de6fb1e12b4daad2d8e7caad32631566ea258a1871',
+    );
+    const duplicate = await db.query<{ relname: string }>(
+      `SELECT relname FROM pg_class
+ WHERE relkind='r' AND relnamespace = 'public'::regnamespace
+ AND relname IN ('doctors','prescriptions')`,
+    );
+    assert.equal(duplicate.rows.length, 0);
   } finally {
     await db.close();
   }
