@@ -66,4 +66,7 @@ Payment reversals, credit notes, receipt PDFs, due dates, organization billing s
 ## Phase 10 — Production readiness
 Phase 10 does not add clinical or billing features and does not deploy a public domain. It hardens the existing Node + PostgreSQL runtime: fail-closed production configuration (`lib/env.ts`, `instrumentation.ts`), security headers (`proxy.ts`, `next.config.ts`), JSON logs (`lib/log.ts`), `/api/health` and `/api/ready`, SMTP or explicit disabled email, operator `pg_dump`/`pg_restore` scripts, and the [operations runbook](operations.md).
 
-Sessions remain opaque database tokens (no JWT secret). PDFs remain on-demand buffers; durable data is PostgreSQL plus host backups. Migration `010_production_readiness.sql` is added only if a live query plan requires it. Vinext/Sites remains unsupported for PostgreSQL production.
+Sessions remain opaque database tokens (no JWT secret). PDFs remain on-demand buffers; durable data is PostgreSQL plus host backups. Migration `010_production_readiness.sql` was not required. Vinext/Sites remains unsupported for PostgreSQL production.
+
+## Phase 11 — Doctors, prescriptions and A5 clinical printing
+Doctors are organization staff (`clinical_doctors` 1:1 with `users`) rather than a second authentication system. Prescriptions are organization-scoped drafts that freeze a clinical snapshot at finalization, allocate `RX-YYYY-NNNNNN` from a tenant/year counter, and render A5 PDFs from that snapshot only. Organization branding (legal name, address, contact, registration, logo) is stored on the tenant and frozen onto issued prescriptions. Named permissions: `doctors:manage`, `prescriptions:read|create|finalize|cancel|download`. Existing laboratory, reporting, sharing and billing grants are unchanged.

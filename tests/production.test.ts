@@ -224,7 +224,7 @@ void test('email providers distinguish stub, disabled and SMTP failure without l
   }
 });
 
-void test('migrations 001 through 009 apply in order on an empty engine', async () => {
+void test('migrations 001 through 010 apply in order on an empty engine', async () => {
   const names = (await readdir(new URL('../db/migrations/', import.meta.url)))
     .filter((name) => name.endsWith('.sql'))
     .sort();
@@ -238,6 +238,7 @@ void test('migrations 001 through 009 apply in order on an empty engine', async 
     '007_report_sharing.sql',
     '008_billing.sql',
     '009_billing_operations.sql',
+    '010_clinical_prescriptions.sql',
   ]);
   const db = new PGlite();
   try {
@@ -248,10 +249,10 @@ void test('migrations 001 through 009 apply in order on an empty engine', async 
     const tables = await db.query<{ relname: string }>(
       `SELECT relname FROM pg_class
  WHERE relkind='r' AND relnamespace = 'public'::regnamespace
- AND relname IN ('organizations','patients','lab_orders','lab_results','lab_reports','lab_invoices','lab_invoice_payment_reversals','lab_credit_notes')
+ AND relname IN ('organizations','patients','lab_orders','lab_results','lab_reports','lab_invoices','lab_invoice_payment_reversals','lab_credit_notes','clinical_doctors','clinical_prescriptions')
  ORDER BY relname`,
     );
-    assert.equal(tables.rows.length, 8);
+    assert.equal(tables.rows.length, 10);
   } finally {
     await db.close();
   }

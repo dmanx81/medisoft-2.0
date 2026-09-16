@@ -53,6 +53,7 @@ void test('detail reserves future modules without exposing activity to unauthori
     'Lab Orders',
     'Results',
     'Documents',
+    'Prescriptions',
     'Billing',
   ])
     assert.ok(html.includes(text));

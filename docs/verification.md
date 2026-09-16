@@ -14,6 +14,7 @@ Validation is performed on the local checkout, with synthetic data only. No live
 - Laboratory billing tests for draft creation from order-test price snapshots, cancelled-test exclusion, issuance numbering, discounts/tax rounding, immutable snapshots after live patient/catalogue mutation, partial/full payment, overpayment rejection, cancellation, RBAC and cross-tenant 404s. Billing APIs deny unauthenticated access and do not expose invoice or payment DELETE.
 - Billing operations tests for reversals, credit notes, receipts, due dates, settings RBAC and invoice email.
 - Production-readiness tests for fail-closed configuration, log redaction, cookie flags, security headers, health, disabled/SMTP email, ordered migrations and restore confirmation.
+- Clinical doctor, prescription, branding and A5 PDF tests for staff-linked doctor profiles, draft/finalize/cancel lifecycle, immutable snapshots, tenant-scoped numbering, logo validation, RBAC and cross-tenant 404s.
 - Standard Next.js production build.
 
 PGlite exercises PostgreSQL SQL semantics in-process. It does not verify a remote PostgreSQL connection, container networking, resource usage under concurrent load, or production proxy configuration. Docker's daemon is not running in this environment, so container startup has not been verified. These deployment checks remain required before customer rollout.
@@ -35,7 +36,7 @@ npm run build:node
 SMOKE_ORIGIN=http://localhost:3000 npm run test:http
 ```
 
-PGlite covers application SQL and handlers. Real PostgreSQL 17 verification applies migrations 001–009 through `scripts/migrate.ts` on a disposable database, confirms an idempotent second run, and rehearses backup/restore onto a second disposable database. The development database is not dropped or restored onto.
+PGlite covers application SQL and handlers. Real PostgreSQL 17 verification applies migrations 001–010 through `scripts/migrate.ts` on a disposable database, confirms an idempotent second run, and rehearses backup/restore onto a second disposable database. The development database is not dropped or restored onto.
 
 The Sites/Vinext toolchain is unchanged and still carries dependency advisories. It is not the supported PostgreSQL application runtime.
 

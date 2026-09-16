@@ -68,14 +68,16 @@ GRANT SELECT, INSERT, UPDATE ON
   lab_orders, lab_order_tests, lab_specimens, lab_specimen_tests,
   lab_order_counters, lab_accession_counters, lab_results, lab_reports,
   lab_report_shares, share_access_limits, lab_invoices, lab_invoice_counters,
-  lab_credit_notes, lab_credit_note_counters
+  lab_credit_notes, lab_credit_note_counters, organization_assets,
+  clinical_doctors, clinical_prescriptions, clinical_prescription_items,
+  clinical_prescription_counters
   TO medisoft_runtime;
 GRANT SELECT, INSERT, DELETE ON sessions, lab_report_share_sessions TO medisoft_runtime;
 GRANT INSERT, SELECT ON
   audit_events, lab_report_deliveries, lab_invoice_payments,
   lab_invoice_payment_reversals, lab_invoice_deliveries
   TO medisoft_runtime;
-GRANT DELETE ON lab_order_tests TO medisoft_runtime;
+GRANT DELETE ON lab_order_tests, clinical_prescription_items TO medisoft_runtime;
 ```
 
 Do not grant DDL, table ownership, `TRUNCATE`, or `UPDATE`/`DELETE` on audit or append-only financial/share tables.
@@ -88,7 +90,7 @@ Migrations never run on application startup. Apply them explicitly with the owne
 DATABASE_URL=postgresql://medisoft_owner:OWNER_PASSWORD@db-host/medisoft npm run db:migrate
 ```
 
-The runner records SHA-256 checksums in `schema_migrations` and is a no-op when files are unchanged. Do not edit migrations `001`–`009`. Re-running after a successful apply must print nothing new.
+The runner records SHA-256 checksums in `schema_migrations` and is a no-op when files are unchanged. Do not edit migrations `001`–`010`. Re-running after a successful apply must print nothing new.
 
 Startup order: empty PostgreSQL → migrate → runtime grants → start the Node server.
 
@@ -96,8 +98,8 @@ Startup order: empty PostgreSQL → migrate → runtime grants → start the Nod
 
 Durable state is **PostgreSQL only**.
 
-- Invoice, receipt and laboratory-report PDFs are generated in memory from frozen snapshots (`pdfkit`, `compress: false`). They are not written to disk.
-- There is no `UPLOAD_DIR` and no user file upload path.
+- Invoice, receipt, laboratory-report and prescription PDFs are generated in memory from frozen snapshots (`pdfkit`, `compress: false`). They are not written to disk.
+- Organization logos and doctor signatures are stored as `bytea` in `organization_assets` (PNG/JPEG/WebP, 32 bytes–256 KB). There is no `UPLOAD_DIR` and no public file path.
 - Temporary PDF bytes live in the request; they do not need a persistent volume on the application container.
 - The Compose named volume `medisoft_data` is the PostgreSQL data directory. Never delete it during an application upgrade.
 - The application image/container layer is ephemeral. Do not place backups inside it.
@@ -218,7 +220,7 @@ npm run db:restore
 
 1. Backup the live database.
 2. Build the new image/artifact.
-3. Apply **new** migrations with the owner role (none in Phase 10 unless `010_production_readiness.sql` exists).
+3. Apply **new** migrations with the owner role (`010_clinical_prescriptions.sql` and later).
 4. Restart the application (`node server.js` / Compose `app`).
 5. Check `/api/health` and `/api/ready`.
 6. Smoke-test login, a patient, an order and an invoice PDF.
@@ -257,7 +259,7 @@ Use a non-production dataset or an empty tenant.
 ## Release checklist (for a later public-domain phase)
 
 - [ ] Production `.env` validated (`config:check`) with a real HTTPS origin
-- [ ] PostgreSQL created; migrations 001–009 applied twice (second no-op)
+- [ ] PostgreSQL created; migrations 001–010 applied twice (second no-op)
 - [ ] Runtime grants applied; owner credentials not used by the app
 - [ ] Encrypted backup restored onto a disposable database and `/api/ready` succeeded
 - [ ] SMTP proven with a real mailbox, or `EMAIL_PROVIDER=disabled` accepted operationally

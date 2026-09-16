@@ -58,7 +58,7 @@ export const navigation: {
     permission: 'doctors:read',
     group: 'Practice',
     description:
-      'Referring doctors and referral details will be available in a future release.',
+      'Maintain clinical doctor profiles used on prescriptions. Historical records stay attached to inactive doctors.',
   },
   {
     label: 'Billing',
@@ -90,6 +90,6 @@ export const navigation: {
     permission: 'settings:read',
     group: 'Management',
     description:
-      'Organization preferences and billing defaults. Changing currency or tax does not rewrite issued invoices.',
+      'Organization preferences, clinical document branding and billing defaults. Changing branding or tax does not rewrite issued documents.',
   },
 ];

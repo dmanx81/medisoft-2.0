@@ -94,6 +94,25 @@ void test('roles deny privileges by default and permit only named grants', () =>
   assert.equal(can('RECEPTIONIST', 'results:read'), false);
   assert.equal(can('VIEWER', 'orders:read'), false);
   assert.equal(can('ORG_ADMIN', 'orders:cancel'), true);
+  assert.equal(can('DOCTOR', 'doctors:read'), true);
+  assert.equal(can('DOCTOR', 'doctors:manage'), false);
+  assert.equal(can('DOCTOR', 'prescriptions:create'), true);
+  assert.equal(can('DOCTOR', 'prescriptions:finalize'), true);
+  assert.equal(can('DOCTOR', 'prescriptions:cancel'), true);
+  assert.equal(can('DOCTOR', 'prescriptions:download'), true);
+  assert.equal(can('RECEPTIONIST', 'doctors:read'), true);
+  assert.equal(can('RECEPTIONIST', 'doctors:manage'), false);
+  assert.equal(can('RECEPTIONIST', 'prescriptions:read'), true);
+  assert.equal(can('RECEPTIONIST', 'prescriptions:create'), false);
+  assert.equal(can('RECEPTIONIST', 'prescriptions:finalize'), false);
+  assert.equal(can('RECEPTIONIST', 'prescriptions:download'), true);
+  assert.equal(can('LAB_TECHNICIAN', 'prescriptions:read'), false);
+  assert.equal(can('LAB_TECHNICIAN', 'doctors:read'), false);
+  assert.equal(can('BIOCHEMIST', 'prescriptions:read'), true);
+  assert.equal(can('BIOCHEMIST', 'prescriptions:finalize'), false);
+  assert.equal(can('VIEWER', 'prescriptions:read'), false);
+  assert.equal(can('ORG_ADMIN', 'doctors:manage'), true);
+  assert.equal(can('ORG_ADMIN', 'prescriptions:finalize'), true);
 });
 void test('tenant helpers enforce identity even for platform administrators', () => {
   assert.deepEqual(organizationScope(principal), {

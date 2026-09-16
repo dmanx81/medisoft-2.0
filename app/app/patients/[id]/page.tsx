@@ -65,6 +65,8 @@ export default async function PatientPage({
         canReadOrders={can(user.role, 'orders:read')}
         canCreateOrders={can(user.role, 'orders:create')}
         canReadBilling={can(user.role, 'billing:read')}
+        canReadPrescriptions={can(user.role, 'prescriptions:read')}
+        canCreatePrescriptions={can(user.role, 'prescriptions:create')}
       />
     </div>
   );
