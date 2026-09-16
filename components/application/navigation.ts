@@ -58,7 +58,7 @@ export const navigation: {
     permission: 'doctors:read',
     group: 'Practice',
     description:
-      'Referring doctors and referral details will be available in a future release.',
+      'Clinical staff profiles used for prescribing. Historical prescriptions keep the doctor identity captured at finalization.',
   },
   {
     label: 'Billing',
@@ -90,6 +90,6 @@ export const navigation: {
     permission: 'settings:read',
     group: 'Management',
     description:
-      'Organization preferences and billing defaults. Changing currency or tax does not rewrite issued invoices.',
+      'Organization identity, clinical document branding and billing defaults. Changing branding does not rewrite finalized prescriptions or issued invoices.',
   },
 ];

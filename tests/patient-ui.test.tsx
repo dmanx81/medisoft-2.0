@@ -52,6 +52,7 @@ void test('detail reserves future modules without exposing activity to unauthori
     'Overview',
     'Lab Orders',
     'Results',
+    'Prescriptions',
     'Documents',
     'Billing',
   ])

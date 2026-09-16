@@ -6,25 +6,30 @@ import { dateLabel } from '@/features/patients/format';
 import { Activity } from './activity';
 import { PatientOrders } from '@/components/orders/patient-orders';
 import { PatientInvoices } from '@/components/billing/patient-invoices';
+import { PatientPrescriptions } from '@/components/prescriptions/patient-list';
 export function PatientDetail({
   patient,
   canActivity,
   canReadOrders = false,
   canCreateOrders = false,
   canReadBilling = false,
+  canReadPrescriptions = false,
+  canCreatePrescriptions = false,
 }: {
   patient: Patient;
   canActivity: boolean;
   canReadOrders?: boolean;
   canCreateOrders?: boolean;
   canReadBilling?: boolean;
+  canReadPrescriptions?: boolean;
+  canCreatePrescriptions?: boolean;
 }) {
   return (
     <Tabs defaultValue="overview">
       <div className="overflow-x-auto border-b border-line">
         <TabsList variant="line" aria-label="Patient sections" className="h-11">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          {['Lab Orders', 'Results', 'Documents', 'Billing'].map((label) => (
+          {['Lab Orders', 'Results', 'Prescriptions', 'Documents', 'Billing'].map((label) => (
             <TabsTrigger key={label} value={label}>
               {label}
             </TabsTrigger>
@@ -90,6 +95,21 @@ export function PatientDetail({
           </p>
         </TabsContent>
       ))}
+      <TabsContent value="Prescriptions" className="mt-4">
+        {canReadPrescriptions ? (
+          <PatientPrescriptions
+            patientId={patient.id}
+            canCreate={canCreatePrescriptions}
+          />
+        ) : (
+          <div className="rounded-md border border-line bg-white p-8">
+            <h2 className="font-semibold">Prescriptions</h2>
+            <p className="mt-2 text-sm text-slate">
+              Your role cannot view prescriptions for this patient.
+            </p>
+          </div>
+        )}
+      </TabsContent>
       <TabsContent value="Billing" className="mt-4">
         {canReadBilling ? (
           <PatientInvoices patientId={patient.id} />

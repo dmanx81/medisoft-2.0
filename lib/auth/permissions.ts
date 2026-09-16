@@ -35,6 +35,12 @@ export const permissions = [
   'reports:share',
   'reports:share-revoke',
   'doctors:read',
+  'doctors:manage',
+  'prescriptions:read',
+  'prescriptions:create',
+  'prescriptions:finalize',
+  'prescriptions:cancel',
+  'prescriptions:download',
   'billing:read',
   'billing:create',
   'billing:issue',
@@ -48,6 +54,7 @@ export const permissions = [
   'tests:edit',
   'users:read',
   'settings:read',
+  'settings:edit',
 ] as const;
 export type Permission = (typeof permissions)[number];
 const grants: Record<Role, readonly Permission[]> = {
@@ -64,6 +71,8 @@ const grants: Record<Role, readonly Permission[]> = {
     'orders:edit',
     'orders:place',
     'doctors:read',
+    'prescriptions:read',
+    'prescriptions:download',
     'billing:read',
     'billing:create',
     'billing:issue',
@@ -115,6 +124,12 @@ const grants: Record<Role, readonly Permission[]> = {
     'results:read',
     'reports:read',
     'reports:download',
+    'doctors:read',
+    'prescriptions:read',
+    'prescriptions:create',
+    'prescriptions:finalize',
+    'prescriptions:cancel',
+    'prescriptions:download',
   ],
   VIEWER: ['dashboard:read'],
 };

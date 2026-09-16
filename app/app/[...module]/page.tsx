@@ -5,6 +5,9 @@ import { navigation } from '@/components/application/navigation';
 import { database } from '@/lib/db';
 import { organizationScope } from '@/lib/db/tenant';
 import { BillingSettingsForm } from '@/components/billing/settings';
+import { BrandingSettingsForm } from '@/components/branding/settings';
+import { getBranding } from '@/features/branding/repository';
+import type { OrganizationBranding } from '@/features/branding/types';
 export default async function ModulePage({
   params,
 }: {
@@ -36,6 +39,7 @@ export default async function ModulePage({
         default_tax_rate: string;
       }
     | undefined;
+  let branding: OrganizationBranding | undefined;
   if (route.href === '/app/settings') {
     const scope = organizationScope(principal);
     // Organizations itself is keyed by id; all owned resources use organization_id.
@@ -45,6 +49,7 @@ export default async function ModulePage({
         scope.values,
       )
     ).rows[0];
+    branding = await getBranding(database(), principal);
   }
   return (
     <section className="max-w-4xl">
@@ -81,6 +86,12 @@ export default async function ModulePage({
               currency: settings.currency,
               default_tax_rate: settings.default_tax_rate,
             }}
+          />
+        )}
+        {branding && (
+          <BrandingSettingsForm
+            initial={branding}
+            canEdit={can(principal.role, 'settings:edit')}
           />
         )}
       </div>
