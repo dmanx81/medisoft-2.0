@@ -84,10 +84,20 @@ export function PrescriptionDetail({
         )}
         {canDownload && current.status !== 'DRAFT' && current.prescription_number && (
           <>
-            <a className="rounded-md border border-line px-3 py-1.5 text-sm" href={pdfHref} target="_blank" rel="noreferrer">
+            <a
+              className="rounded-md border border-line px-3 py-1.5 text-sm"
+              href={`${pdfHref}?mode=preview`}
+              target="_blank"
+              rel="noreferrer"
+            >
               Preview
             </a>
-            <a className="rounded-md border border-line px-3 py-1.5 text-sm" href={pdfHref} target="_blank" rel="noreferrer">
+            <a
+              className="rounded-md border border-line px-3 py-1.5 text-sm"
+              href={`${pdfHref}?mode=preview`}
+              target="_blank"
+              rel="noreferrer"
+            >
               Print
             </a>
             <a

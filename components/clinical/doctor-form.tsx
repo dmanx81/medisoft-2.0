@@ -10,6 +10,7 @@ type Failure = { code?: string; message?: string; fields?: Record<string, string
 export function DoctorForm({ initial }: { initial?: ClinicalDoctor }) {
   const router = useRouter();
   const [staff, setStaff] = useState<StaffLookup[]>([]);
+  const [staffError, setStaffError] = useState('');
   const [values, setValues] = useState({
     user_id: initial?.user_id ?? '',
     email: '',
@@ -30,48 +31,72 @@ export function DoctorForm({ initial }: { initial?: ClinicalDoctor }) {
   useEffect(() => {
     if (initial) return;
     void (async () => {
-      const response = await fetch('/api/clinical-doctors/lookups', { cache: 'no-store' });
-      if (!response.ok) return;
-      setStaff((await response.json()) as StaffLookup[]);
+      try {
+        const response = await fetch('/api/clinical-doctors/lookups', { cache: 'no-store' });
+        if (!response.ok) {
+          setStaffError('Staff accounts could not be loaded.');
+          return;
+        }
+        setStaff((await response.json()) as StaffLookup[]);
+      } catch {
+        setStaffError('Staff accounts could not be loaded.');
+      }
     })();
   }, [initial]);
   function change(name: keyof typeof values, value: string) {
     setValues((current) => ({ ...current, [name]: value }));
     setFailure(null);
   }
+  function chooseStaff(person: StaffLookup | null) {
+    if (!person) {
+      change('user_id', '');
+      return;
+    }
+    const parts = person.name.trim().split(/\s+/);
+    setValues((current) => ({
+      ...current,
+      user_id: person.id,
+      first_name: current.first_name || parts[0] || '',
+      last_name: current.last_name || parts.slice(1).join(' '),
+      display_name: current.display_name || person.name,
+      email: current.email || person.email,
+    }));
+    setFailure(null);
+  }
+  async function save() {
+    setSaving(true);
+    setFailure(null);
+    try {
+      const response = await fetch(
+        initial ? `/api/clinical-doctors/${initial.id}` : '/api/clinical-doctors',
+        {
+          method: initial ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            initial
+              ? { ...values, version: initial.version }
+              : { ...values, user_id: values.user_id || undefined },
+          ),
+          cache: 'no-store',
+        },
+      );
+      const payload = (await response.json()) as Failure & ClinicalDoctor;
+      if (!response.ok) {
+        setFailure(payload);
+        return;
+      }
+      router.push(`/app/doctors/${payload.id}`);
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
     <form
       className="grid max-w-3xl gap-4 rounded-md border border-line bg-white p-6"
       onSubmit={(event) => {
         event.preventDefault();
-        setSaving(true);
-        setFailure(null);
-        void (async () => {
-          try {
-            const response = await fetch(
-              initial ? `/api/clinical-doctors/${initial.id}` : '/api/clinical-doctors',
-              {
-                method: initial ? 'PATCH' : 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(
-                  initial
-                    ? { ...values, version: initial.version }
-                    : { ...values, user_id: values.user_id || undefined },
-                ),
-                cache: 'no-store',
-              },
-            );
-            const payload = (await response.json()) as Failure & ClinicalDoctor;
-            if (!response.ok) {
-              setFailure(payload);
-              return;
-            }
-            router.push(`/app/doctors/${payload.id}`);
-            router.refresh();
-          } finally {
-            setSaving(false);
-          }
-        })();
+        void save();
       }}
     >
       {failure && (
@@ -81,23 +106,53 @@ export function DoctorForm({ initial }: { initial?: ClinicalDoctor }) {
       )}
       {!initial && (
         <>
-          <label className="text-sm font-medium" htmlFor="doctor-staff">
-            Existing staff member
-            <NativeSelect
-              id="doctor-staff"
-              className="mt-2"
-              value={values.user_id}
-              onChange={(event) => change('user_id', event.target.value)}
-            >
-              <option value="">Create a new invited doctor account</option>
-              {staff.map((person) => (
-                <option key={person.id} value={person.id} disabled={!!person.doctor_id}>
-                  {person.name} ({person.email})
-                  {person.doctor_id ? ' — already a doctor' : ''}
-                </option>
-              ))}
-            </NativeSelect>
-          </label>
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-medium">Existing staff member</legend>
+            <p className="text-sm text-slate">
+              Link an organization account, or invite a new doctor login.
+            </p>
+            {staffError && (
+              <p className="text-sm text-coral" role="alert">
+                {staffError}
+              </p>
+            )}
+            <label className="flex cursor-pointer items-start gap-3 rounded-md border border-line px-3 py-2 text-sm">
+              <input
+                type="radio"
+                name="doctor-staff"
+                className="mt-1"
+                value=""
+                checked={!values.user_id}
+                onChange={() => chooseStaff(null)}
+                aria-label="Create a new invited doctor account"
+              />
+              Create a new invited doctor account
+            </label>
+            {staff.map((person) => (
+              <label
+                key={person.id}
+                className="flex cursor-pointer items-start gap-3 rounded-md border border-line px-3 py-2 text-sm"
+              >
+                <input
+                  type="radio"
+                  name="doctor-staff"
+                  className="mt-1"
+                  value={person.id}
+                  checked={values.user_id === person.id}
+                  disabled={!!person.doctor_id}
+                  onChange={() => chooseStaff(person)}
+                  aria-label={`${person.name} ${person.email} ${person.role}`}
+                />
+                <span>
+                  {person.name}
+                  <span className="block text-slate">
+                    {person.email} · {person.role}
+                    {person.doctor_id ? ' — already a doctor' : ''}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
           {!values.user_id && (
             <label className="text-sm font-medium" htmlFor="doctor-email">
               Login email

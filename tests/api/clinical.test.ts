@@ -44,8 +44,9 @@ function request(
   method: string,
   body?: unknown,
   origin = 'https://clinic.example',
+  url = 'https://clinic.example/api/clinical',
 ) {
-  return new Request('https://clinic.example/api/clinical', {
+  return new Request(url, {
     method,
     headers: { origin, 'content-type': 'application/json' },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -177,10 +178,27 @@ void test('clinical APIs enforce origin, tenant scope and finalize permissions',
     });
     assert.equal(pdf.status, 200);
     assert.equal(pdf.headers.get('content-type'), 'application/pdf');
+    assert.match(pdf.headers.get('content-disposition') || '', /^attachment;/);
+    const preview = await pdfRoute.GET(
+      request(
+        'GET',
+        undefined,
+        'https://clinic.example',
+        'https://clinic.example/api/clinical-prescriptions/pdf?mode=preview',
+      ),
+      { params: Promise.resolve({ id: issued.id }) },
+    );
+    assert.equal(preview.status, 200);
+    assert.match(preview.headers.get('content-disposition') || '', /^inline;/);
     const branding = await brandingRoute.PATCH(
       request('PATCH', { legal_name: 'Care Centre', city: 'Tirana' }),
     );
     assert.equal(branding.status, 200);
+    principal = { ...users[0], role: 'DOCTOR' };
+    const doctorBranding = await brandingRoute.PATCH(
+      request('PATCH', { legal_name: 'Doctor cannot write branding' }),
+    );
+    assert.equal(doctorBranding.status, 403);
     principal = users[1];
     const otherBranding = await brandingRoute.GET(request('GET'));
     const body = (await otherBranding.json()) as { legal_name: string };

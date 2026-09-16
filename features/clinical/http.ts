@@ -72,11 +72,14 @@ export async function clinicalPdfApi(
         'Your role does not allow this action.',
       );
     const { pdf, filename } = await handler(principal);
+    const mode = new URL(request.url).searchParams.get('mode');
+    const safeName = filename.replace(/["\\\r\n]/g, '_');
+    const disposition = mode === 'preview' ? 'inline' : 'attachment';
     return new Response(new Uint8Array(pdf), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="${filename}"`,
+        'Content-Disposition': `${disposition}; filename="${safeName}"`,
         'Cache-Control': 'private, no-store',
         'Referrer-Policy': 'no-referrer',
         'X-Content-Type-Options': 'nosniff',

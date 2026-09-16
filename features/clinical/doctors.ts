@@ -16,7 +16,7 @@ import {
   type StaffLookup,
 } from './types';
 import { clinicalTransaction } from './transaction';
-import { assertSafeImage } from './image';
+import { asBytea, assertSafeImage } from './image';
 
 const selectDoctor = `id,organization_id,user_id,first_name,last_name,display_name,title,specialty,
  license_number,phone,email,qualifications,department,COALESCE(signature_asset_id::text,'') AS signature_asset_id,
@@ -360,14 +360,19 @@ export async function saveDoctorSignature(
       await db.query(
         `UPDATE organization_assets SET content_type=$3,bytes=$4
  WHERE organization_id=$1 AND id=$2 AND kind='SIGNATURE'`,
-        [principal.organizationId, assetId, image.type, image.bytes],
+        [principal.organizationId, assetId, image.type, asBytea(image.bytes)],
       );
     } else {
       const inserted = (
         await db.query<{ id: string }>(
           `INSERT INTO organization_assets(organization_id,kind,content_type,bytes,created_by)
  VALUES($1,'SIGNATURE',$2,$3,$4) RETURNING id`,
-          [principal.organizationId, image.type, image.bytes, principal.userId],
+          [
+            principal.organizationId,
+            image.type,
+            asBytea(image.bytes),
+            principal.userId,
+          ],
         )
       ).rows[0];
       assetId = inserted.id;

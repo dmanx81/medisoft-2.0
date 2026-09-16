@@ -113,18 +113,21 @@ export function renderPrescriptionPdf(
       const range = doc.bufferedPageRange();
       for (let i = 0; i < range.count; i += 1) {
         doc.switchToPage(range.start + i);
+        const previousBottom = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0;
         doc.fontSize(7).fillColor('#5B6B70');
         doc.text(
           `${orgTitle}  ·  ${clinical.prescription.prescription_number}  ·  page ${i + 1} of ${range.count}`,
           MARGIN,
           doc.page.height - 28,
-          { width, align: 'center' },
+          { width, align: 'center', lineBreak: false },
         );
+        doc.page.margins.bottom = previousBottom;
       }
     }
 
     function ensureSpace(needed: number) {
-      if (doc.y + needed <= doc.page.height - 42) return;
+      if (doc.y + needed <= doc.page.height - MARGIN - 28) return;
       doc.addPage({ size: A5, margin: MARGIN });
       page += 1;
       header(true);

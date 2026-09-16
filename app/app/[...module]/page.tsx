@@ -80,7 +80,12 @@ export default async function ModulePage({
             ))}
           </dl>
         )}
-        {branding && <BrandingForm initial={branding} />}
+        {branding && (
+          <BrandingForm
+            initial={branding}
+            canEdit={can(principal.role, 'settings:edit')}
+          />
+        )}
         {settings && can(principal.role, 'billing:settings') && (
           <BillingSettingsForm
             initial={{
