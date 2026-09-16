@@ -1,5 +1,31 @@
-import sharp from 'sharp';
+import sharpLib from 'sharp';
 import { BrandingError, type ProcessedImage } from './types';
+
+const sharp = sharpLib as unknown as (
+  input: SharpInput,
+  options?: { failOn?: 'none' | 'truncated' | 'error' | 'warning'; sequentialRead?: boolean },
+) => SharpImage;
+type SharpInput =
+  | Buffer
+  | { create: { width: number; height: number; channels: number; background: string } };
+type SharpImage = {
+  rotate: () => SharpImage;
+  metadata: () => Promise<{ width?: number; height?: number }>;
+  resize: (options: {
+    width: number;
+    height: number;
+    fit: 'inside';
+    withoutEnlargement: boolean;
+  }) => SharpImage;
+  png: (options?: { compressionLevel?: number; effort?: number }) => SharpImage;
+  toBuffer: {
+    (): Promise<Buffer>;
+    (options: { resolveWithObject: true }): Promise<{
+      data: Buffer;
+      info: { width: number; height: number };
+    }>;
+  };
+};
 
 const allowed = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -81,4 +107,16 @@ export async function processDocumentImage(
     if (error instanceof BrandingError) throw error;
     throw new BrandingError(400, 'VALIDATION', 'The image could not be processed.');
   }
+}
+
+export async function solidPng(
+  width = 120,
+  height = 48,
+  background = '#0F766E',
+) {
+  return sharp({
+    create: { width, height, channels: 3, background },
+  })
+    .png()
+    .toBuffer();
 }

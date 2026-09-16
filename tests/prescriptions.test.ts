@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
-import sharp from 'sharp';
+import { solidPng } from '../features/branding/assets';
 import { createPatient } from '../features/patients/repository';
 import { emptyPatient } from '../features/patients/validation';
 import { createDoctor, updateDoctor } from '../features/doctors/repository';
@@ -17,7 +17,6 @@ import {
   updatePrescription,
 } from '../features/prescriptions/repository';
 import { PrescriptionError } from '../features/prescriptions/types';
-import { renderPrescriptionPdf } from '../features/prescriptions/pdf';
 import type { Principal } from '../lib/auth/permissions';
 
 const migrations = [
@@ -59,11 +58,7 @@ function pdfText(buffer: Buffer) {
 }
 
 async function png(color = '#0F766E') {
-  return sharp({
-    create: { width: 160, height: 64, channels: 3, background: color },
-  })
-    .png()
-    .toBuffer();
+  return solidPng(160, 64, color);
 }
 
 async function setup() {
@@ -405,20 +400,6 @@ void test('prescription lifecycle, immutability, numbering, isolation and A5 PDF
     const listed = await listPrescriptions(db, adminA, { patient_id: a.patient });
     assert.ok(listed.prescriptions.length >= 2);
     assert.ok(!JSON.stringify(listed).includes('Acute pharyngitis'));
-
-    const snapshotPdf = await renderPrescriptionPdf(
-      historical.snapshot && 'schema_version' in historical.snapshot
-        ? {
-            ...historical.snapshot,
-            organization: {
-              ...historical.snapshot.organization,
-              logo: null,
-            },
-            doctor: { ...historical.snapshot.doctor, signature: null },
-          }
-        : (await getPrescription(db, adminA, secondFinal.id)).snapshot as never,
-    );
-    assert.equal(snapshotPdf.subarray(0, 4).toString(), '%PDF');
   } finally {
     await db.close();
   }

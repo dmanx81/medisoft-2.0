@@ -26,8 +26,7 @@ export function BrandingSettingsForm({
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [saved, setSaved] = useState(false);
-  async function save(event: React.FormEvent) {
-    event.preventDefault();
+  async function save() {
     setBusy(true);
     setFailure(null);
     setSaved(false);
@@ -84,7 +83,13 @@ export function BrandingSettingsForm({
     ['registration_number', 'Registration / license number'],
   ];
   return (
-    <form className="mt-8 grid gap-3 border-t border-line pt-6" onSubmit={(event) => void save(event)}>
+    <form
+      className="mt-8 grid gap-3 border-t border-line pt-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save();
+      }}
+    >
       <h3 className="font-medium">Clinical document branding</h3>
       <p className="text-sm text-slate">
         These details appear on new prescriptions and are designed for later

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
-import sharp from 'sharp';
+import { solidPng } from '../features/branding/assets';
 import { createPatient } from '../features/patients/repository';
 import { emptyPatient } from '../features/patients/validation';
 import {
@@ -37,11 +37,7 @@ const migrations = [
 ];
 
 async function png() {
-  return sharp({
-    create: { width: 120, height: 48, channels: 3, background: '#0F766E' },
-  })
-    .png()
-    .toBuffer();
+  return solidPng();
 }
 
 async function fixture() {

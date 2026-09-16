@@ -2,9 +2,9 @@ import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
-import sharp from 'sharp';
 import { emptyPatient } from '../../features/patients/validation';
 import { createPatient } from '../../features/patients/repository';
+import { solidPng } from '../../features/branding/assets';
 import type { Principal } from '../../lib/auth/permissions';
 const db = new PGlite();
 let principal: Principal | null = null;
@@ -143,11 +143,7 @@ void test('clinical APIs enforce origin, tenant scope, finalize permission and A
       }),
     );
     assert.equal(branding.status, 200);
-    const logoBytes = await sharp({
-      create: { width: 80, height: 40, channels: 3, background: '#17353A' },
-    })
-      .png()
-      .toBuffer();
+    const logoBytes = await solidPng(80, 40, '#17353A');
     const logo = await logoRoute.PUT(
       new Request('https://clinic.example/api/organization/branding/logo', {
         method: 'PUT',

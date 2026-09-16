@@ -23,6 +23,9 @@ function permit(principal: Principal, permission: Permission) {
 function mapBranding(row: OrganizationBranding): OrganizationBranding {
   return { ...row, has_logo: Boolean(row.logo_asset_id) };
 }
+function asBytes(value: Buffer) {
+  return Uint8Array.from(value);
+}
 async function transaction<T>(db: QueryRunner, work: () => Promise<T>): Promise<T> {
   await db.query('BEGIN');
   try {
@@ -42,11 +45,12 @@ async function audit(
 ) {
   await db.query(
     `INSERT INTO audit_events(organization_id,user_id,action,entity_type,entity_id,metadata,session_hash)
- VALUES($1,$2,$3,'ORGANIZATION',$1,$4::jsonb,$5)`,
+ VALUES($1,$2,$3,'ORGANIZATION',$4,$5::jsonb,$6)`,
     [
       principal.organizationId,
       principal.userId,
       action,
+      principal.organizationId,
       JSON.stringify(metadata),
       principal.sessionHash,
     ],
@@ -168,7 +172,7 @@ export async function upsertLogo(
         [
           principal.organizationId,
           assetId,
-          processed.bytes,
+          asBytes(processed.bytes),
           processed.bytes.length,
           processed.width,
           processed.height,
@@ -185,7 +189,7 @@ export async function upsertLogo(
  RETURNING id`,
           [
             principal.organizationId,
-            processed.bytes,
+            asBytes(processed.bytes),
             processed.bytes.length,
             processed.width,
             processed.height,

@@ -72,8 +72,7 @@ export function PrescriptionForm({
       ),
     );
   }
-  async function save(event: React.FormEvent) {
-    event.preventDefault();
+  async function save() {
     setBusy(true);
     setFailure(null);
     try {
@@ -120,7 +119,13 @@ export function PrescriptionForm({
     ['instructions', 'Instructions'],
   ];
   return (
-    <form className="mx-auto max-w-4xl" onSubmit={(event) => void save(event)}>
+    <form
+      className="mx-auto max-w-4xl"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save();
+      }}
+    >
       <Link href={`/app/patients/${patientId}`} className="text-sm text-teal">
         ← Patient record
       </Link>

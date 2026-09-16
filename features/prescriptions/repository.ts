@@ -80,25 +80,26 @@ function clientSnapshot(
 ): PrescriptionSnapshot | Record<string, never> {
   if (!('schema_version' in snapshot) || snapshot.schema_version !== 1)
     return {};
+  const frozen = snapshot as PrescriptionSnapshot;
   return {
-    ...snapshot,
+    ...frozen,
     organization: {
-      ...snapshot.organization,
-      logo: snapshot.organization.logo
+      ...frozen.organization,
+      logo: frozen.organization.logo
         ? {
             png_base64: '',
-            width: snapshot.organization.logo.width,
-            height: snapshot.organization.logo.height,
+            width: frozen.organization.logo.width,
+            height: frozen.organization.logo.height,
           }
         : null,
     },
     doctor: {
-      ...snapshot.doctor,
-      signature: snapshot.doctor.signature
+      ...frozen.doctor,
+      signature: frozen.doctor.signature
         ? {
             png_base64: '',
-            width: snapshot.doctor.signature.width,
-            height: snapshot.doctor.signature.height,
+            width: frozen.doctor.signature.width,
+            height: frozen.doctor.signature.height,
           }
         : null,
     },
@@ -354,7 +355,7 @@ export async function listPrescriptions(
   const { query, status, patient_id, page, pageSize } = parsed.data;
   const pattern = `%${query.replace(/[\\%_]/g, '\\$&')}%`;
   const where = `p.organization_id=$1 AND ($2='ALL' OR p.status=$2)
- AND ($3::uuid IS NULL OR p.patient_id=$3)
+ AND ($3::uuid IS NULL OR p.patient_id=$3::uuid)
  AND ($4='' OR p.prescription_number ILIKE $5 ESCAPE '\\'
   OR d.display_name ILIKE $5 ESCAPE '\\'
   OR COALESCE(p.snapshot->'doctor'->>'display_name','') ILIKE $5 ESCAPE '\\')`;

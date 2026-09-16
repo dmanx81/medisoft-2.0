@@ -50,8 +50,7 @@ export function DoctorForm({
       if (response.ok) setStaff((await response.json()) as StaffCandidate[]);
     })();
   }, [initial, canManage]);
-  async function save(event: React.FormEvent) {
-    event.preventDefault();
+  async function save() {
     if (!canManage) return;
     setBusy(true);
     setFailure(null);
@@ -105,7 +104,13 @@ export function DoctorForm({
     ['qualifications', 'Qualifications', 'textarea'],
   ];
   return (
-    <form className="mx-auto max-w-3xl" onSubmit={(event) => void save(event)}>
+    <form
+      className="mx-auto max-w-3xl"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save();
+      }}
+    >
       <Link href="/app/doctors" className="text-sm text-teal">
         ← Doctors
       </Link>

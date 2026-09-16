@@ -347,7 +347,7 @@ export async function upsertDoctorSignature(
         [
           principal.organizationId,
           assetId,
-          processed.bytes,
+          Uint8Array.from(processed.bytes),
           processed.bytes.length,
           processed.width,
           processed.height,
@@ -364,7 +364,7 @@ export async function upsertDoctorSignature(
  RETURNING id`,
           [
             principal.organizationId,
-            processed.bytes,
+            Uint8Array.from(processed.bytes),
             processed.bytes.length,
             processed.width,
             processed.height,
