@@ -90,7 +90,9 @@ export function BrandingSettingsForm({
         void save();
       }}
     >
-      <h3 className="font-medium">Clinical document branding</h3>
+      <h3 id="clinical-document-branding" className="font-medium">
+        Clinical document branding
+      </h3>
       <p className="text-sm text-slate">
         These details appear on new prescriptions and are designed for later
         reuse on reports, invoices and certificates. Finalized documents keep
@@ -101,7 +103,9 @@ export function BrandingSettingsForm({
           {failure.message || 'Branding could not be saved.'}
         </p>
       )}
-      {saved && <p className="text-sm text-teal">Organization branding saved.</p>}
+      {saved && (
+        <output className="text-sm text-teal">Organization branding saved.</output>
+      )}
       {fields.map(([name, label]) => (
         <label key={name} className="text-sm font-medium" htmlFor={`branding-${name}`}>
           {label}

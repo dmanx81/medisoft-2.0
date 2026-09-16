@@ -43,11 +43,34 @@ export function DoctorForm({
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  const [staffError, setStaffError] = useState('');
   useEffect(() => {
     if (initial || !canManage) return;
     void (async () => {
-      const response = await fetch('/api/doctors/staff', { cache: 'no-store' });
-      if (response.ok) setStaff((await response.json()) as StaffCandidate[]);
+      try {
+        const response = await fetch('/api/doctors/staff', { cache: 'no-store' });
+        if (!response.ok) {
+          setStaffError('Staff accounts could not be loaded.');
+          return;
+        }
+        const people = (await response.json()) as StaffCandidate[];
+        setStaff(people);
+        setValues((current) => {
+          if (current.user_id || people.length === 0) return current;
+          const person = people[0];
+          const parts = person.name.trim().split(/\s+/);
+          return {
+            ...current,
+            user_id: person.id,
+            first_name: current.first_name || parts[0] || '',
+            last_name: current.last_name || parts.slice(1).join(' '),
+            display_name: current.display_name || person.name,
+            email: current.email || person.email,
+          };
+        });
+      } catch {
+        setStaffError('Staff accounts could not be loaded.');
+      }
     })();
   }, [initial, canManage]);
   async function save() {
@@ -129,26 +152,47 @@ export function DoctorForm({
       )}
       <div className="mt-6 grid gap-4 rounded-md border border-line bg-white p-5">
         {!initial && (
-          <label className="text-sm font-medium" htmlFor="doctor-staff">
-            Staff member
-            <NativeSelect
-              id="doctor-staff"
-              className="mt-2 w-full"
-              value={values.user_id}
-              onChange={(event) =>
-                setValues((current) => ({ ...current, user_id: event.target.value }))
-              }
-              required
-              disabled={!canManage}
-            >
-              <NativeSelectOption value="">Select staff member</NativeSelectOption>
-              {staff.map((person) => (
-                <NativeSelectOption key={person.id} value={person.id}>
-                  {person.name} · {person.email} · {person.role}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
-          </label>
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-medium">Staff member</legend>
+            <p className="text-sm text-slate">
+              Choose the organization account this doctor profile belongs to.
+            </p>
+            {staffError && (
+              <p className="text-sm text-coral" role="alert">
+                {staffError}
+              </p>
+            )}
+            {!staffError && staff.length === 0 && (
+              <p className="text-sm text-slate">
+                Every staff account already has a doctor profile, or no staff
+                accounts are available.
+              </p>
+            )}
+            {staff.map((person) => (
+              <label
+                key={person.id}
+                className="flex cursor-pointer items-start gap-3 rounded-md border border-line px-3 py-2 text-sm"
+              >
+                <input
+                  type="radio"
+                  name="doctor-staff"
+                  className="mt-1"
+                  value={person.id}
+                  checked={values.user_id === person.id}
+                  onChange={() =>
+                    setValues((current) => ({ ...current, user_id: person.id }))
+                  }
+                  required
+                  disabled={!canManage}
+                  aria-label={`${person.name} ${person.email} ${person.role}`}
+                />
+                {person.name}
+                <span className="block text-slate">
+                  {person.email} · {person.role}
+                </span>
+              </label>
+            ))}
+          </fieldset>
         )}
         {initial && (
           <p className="text-sm text-slate">

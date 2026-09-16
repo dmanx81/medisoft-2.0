@@ -98,7 +98,13 @@ void test('patient detail includes a prescriptions section', () => {
     updated_by: 'test',
   };
   const html = renderToStaticMarkup(
-    <PatientDetail patient={patient} canActivity={false} canReadPrescriptions />,
+    <PatientDetail
+      patient={patient}
+      canActivity={false}
+      canReadPrescriptions
+      canCreatePrescriptions
+    />,
   );
   assert.ok(html.includes('Prescriptions'));
+  assert.ok(html.includes('New prescription'));
 });

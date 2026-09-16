@@ -4,10 +4,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from '@/components/ui/native-select';
 import { emptyItem } from '@/features/prescriptions/validation';
 import type { Prescription, PrescriptionItemInput } from '@/features/prescriptions/types';
 import type { DoctorSummary } from '@/features/doctors/types';
@@ -62,6 +58,7 @@ export function PrescriptionForm({
       if (response.ok) {
         const data = (await response.json()) as { doctors: DoctorSummary[] };
         setDoctors(data.doctors);
+        setDoctorId((current) => current || data.doctors[0]?.id || '');
       }
     })();
   }, [canSelectDoctor]);
@@ -143,24 +140,36 @@ export function PrescriptionForm({
       )}
       <div className="mt-6 grid gap-4 rounded-md border border-line bg-white p-5">
         {canSelectDoctor ? (
-          <label className="text-sm font-medium" htmlFor="rx-doctor">
-            Prescribing doctor
-            <NativeSelect
-              id="rx-doctor"
-              className="mt-2 w-full"
-              value={doctorId}
-              onChange={(event) => setDoctorId(event.target.value)}
-              required
-            >
-              <NativeSelectOption value="">Select doctor</NativeSelectOption>
-              {doctors.map((doctor) => (
-                <NativeSelectOption key={doctor.id} value={doctor.id}>
-                  {doctor.display_name}
-                  {doctor.specialty ? ` · ${doctor.specialty}` : ''}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
-          </label>
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-medium">Prescribing doctor</legend>
+            {doctors.length === 0 && (
+              <p className="text-sm text-slate">
+                No active doctor profiles are available. Create a doctor profile
+                first.
+              </p>
+            )}
+            {doctors.map((doctor) => (
+              <label
+                key={doctor.id}
+                className="flex cursor-pointer items-start gap-3 rounded-md border border-line px-3 py-2 text-sm"
+              >
+                <input
+                  type="radio"
+                  name="rx-doctor"
+                  className="mt-1"
+                  value={doctor.id}
+                  checked={doctorId === doctor.id}
+                  onChange={() => setDoctorId(doctor.id)}
+                  required
+                  aria-label={doctor.display_name}
+                />
+                {doctor.display_name}
+                {doctor.specialty ? (
+                  <span className="block text-slate">{doctor.specialty}</span>
+                ) : null}
+              </label>
+            ))}
+          </fieldset>
         ) : (
           <p className="text-sm text-slate">
             Prescribing doctor is taken from your clinical staff profile.
