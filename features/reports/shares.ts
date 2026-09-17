@@ -230,13 +230,19 @@ export async function createReportShare(
       )
     ).rows[0];
     if (!report) notFound();
-    if (report.status !== 'ISSUED' && report.status !== 'SUPERSEDED')
+    const mapped = mapReport(report);
+    if (mapped.status !== 'ISSUED' && mapped.status !== 'SUPERSEDED')
       throw new ReportError(
         409,
         'REPORT_NOT_ISSUED',
         'Only an issued official report can be shared.',
       );
-    const mapped = mapReport(report);
+    if (mapped.status === 'SUPERSEDED' && !mapped.successor_id)
+      throw new ReportError(
+        409,
+        'REPORT_NOT_CURRENT',
+        'This report is no longer current. Issue a replacement before creating a new patient link.',
+      );
     const secret = newShareToken();
     const pin = newSharePin();
     const pinHash = await hashPassword(pin);

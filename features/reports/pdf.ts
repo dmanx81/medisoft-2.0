@@ -57,7 +57,9 @@ export function renderReportPdf(
       doc
         .fillColor('#C2410C')
         .fontSize(9)
-        .text('This report has been superseded by a later issued version.');
+        .text(
+          'This report has been superseded and is no longer the current official report.',
+        );
     }
     doc.moveDown(0.5);
     doc.fillColor('#17353A').fontSize(10);

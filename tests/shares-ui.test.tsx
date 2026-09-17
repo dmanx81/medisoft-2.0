@@ -116,6 +116,32 @@ void test('share controls appear only for authorized roles and name the report v
   assert.ok(doctor.includes('LAB-2026-000009-R2'));
   assert.ok(!doctor.includes('Create secure link'));
 });
+void test('stale superseded reports cannot create a new current patient link', () => {
+  const stale: LabReport = {
+    ...previous,
+    successor_id: '',
+  };
+  const html = renderToStaticMarkup(
+    <OrderDetail
+      initial={{ ...order, status: 'IN_PROCESS', reports: [stale] }}
+      activity={[]}
+      canEdit={false}
+      canPlace={false}
+      canCancel={false}
+      canCollect={false}
+      canReceive={false}
+      canReject={false}
+      canReadReports
+      canGenerateReports
+      canDownloadReports
+      canShareReports
+      canRevokeReportShares
+    />,
+  );
+  assert.ok(html.includes('no longer current'));
+  assert.ok(html.includes('replacement report'));
+  assert.ok(!html.includes('Create secure link'));
+});
 void test('public report-access states stay generic and snapshot-only', () => {
   const unavailable = renderToStaticMarkup(
     <PublicReportAccess token={'a'.repeat(64)} initial={{ status: 'unavailable' }} />,
@@ -157,7 +183,7 @@ void test('public report-access states stay generic and snapshot-only', () => {
   assert.ok(ready.includes('v1'));
   assert.ok(ready.includes('John Test'));
   assert.ok(ready.includes('Download official PDF'));
-  assert.ok(ready.includes('previous official version'));
+  assert.ok(ready.includes('no longer the current official version'));
   assert.ok(ready.includes('/api/public/reports/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/pdf'));
   assert.ok(ready.includes('noreferrer'));
 });

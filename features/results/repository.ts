@@ -1,7 +1,10 @@
 import type { QueryRunner } from '@/lib/db/query';
 import { can, type Permission, type Principal } from '@/lib/auth/permissions';
 import { getOrder } from '@/features/orders/repository';
-import { evaluateOrderCompletion } from '@/features/reports/completion';
+import {
+  evaluateOrderCompletion,
+  supersedeCurrentReportForOrder,
+} from '@/features/reports/completion';
 import { OrderError, type LabOrder } from '@/features/orders/types';
 import { calculateNumericFlag } from './flags';
 import { selectReferenceRange, type SelectableRange } from './ranges';
@@ -846,6 +849,11 @@ export async function amendResult(
       reason: parsed.data.reason,
     });
     await evaluateOrderCompletion(db, principal, current.order_id);
+    await supersedeCurrentReportForOrder(db, principal, current.order_id, {
+      invalidated_by: 'RESULT_AMENDED',
+      result_id: nextId,
+      superseded_result_id: current.id,
+    });
     return orderWithResults(db, principal, current.order_id);
   });
 }

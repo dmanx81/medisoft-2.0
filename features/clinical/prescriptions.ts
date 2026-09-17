@@ -126,6 +126,7 @@ async function requireDoctor(
   principal: Principal,
   doctorId: string,
   forFinalize: boolean,
+  forbiddenMessage = 'You can only prescribe using your own doctor profile.',
 ) {
   const doctor = (
     await db.query<{ id: string; user_id: string; status: string }>(
@@ -141,12 +142,9 @@ async function requireDoctor(
       { doctor_id: 'Doctor was not found in this organization.' },
     );
   if (principal.role === 'DOCTOR' && doctor.user_id !== principal.userId)
-    throw new ClinicalError(
-      403,
-      'FORBIDDEN',
-      'You can only prescribe using your own doctor profile.',
-      { doctor_id: 'Choose your own doctor profile.' },
-    );
+    throw new ClinicalError(403, 'FORBIDDEN', forbiddenMessage, {
+      doctor_id: 'Choose your own doctor profile.',
+    });
   if (forFinalize && doctor.status !== 'ACTIVE')
     throw new ClinicalError(
       409,
@@ -534,8 +532,13 @@ export async function cancelPrescription(
     );
   return clinicalTransaction(db, async () => {
     const locked = (
-      await db.query<{ id: string; status: string; version: number }>(
-        `SELECT id,status,version FROM clinical_prescriptions
+      await db.query<{
+        id: string;
+        status: string;
+        version: number;
+        doctor_id: string;
+      }>(
+        `SELECT id,status,version,doctor_id FROM clinical_prescriptions
  WHERE organization_id=$1 AND id=$2 FOR UPDATE`,
         [principal.organizationId, idValue(id)],
       )
@@ -553,6 +556,13 @@ export async function cancelPrescription(
         'CONFLICT',
         'This prescription was changed by someone else. Reload and try again.',
       );
+    await requireDoctor(
+      db,
+      principal,
+      locked.doctor_id,
+      false,
+      'You can only cancel prescriptions associated with your own doctor profile.',
+    );
     const updated = (
       await db.query<{ id: string }>(
         `UPDATE clinical_prescriptions SET status='CANCELLED',cancellation_reason=$3,
@@ -598,6 +608,12 @@ export async function downloadPrescriptionPdf(
     )
   ).rows[0];
   if (!row) notFound();
+  if (row.status === 'CANCELLED')
+    throw new ClinicalError(
+      409,
+      'CONFLICT',
+      'Cancelled prescriptions cannot be printed as valid prescriptions.',
+    );
   if (row.status === 'DRAFT' || !row.prescription_number)
     throw new ClinicalError(
       409,

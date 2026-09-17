@@ -187,6 +187,18 @@ function withoutLiveClinical(db: PGlite): QueryRunner {
     },
   };
 }
+function pdfText(buffer: Buffer) {
+  const raw = buffer.toString('latin1');
+  const parts: string[] = [];
+  for (const match of raw.matchAll(/<([0-9A-Fa-f]+)>/g)) {
+    if (match[1].length % 2 !== 0) continue;
+    parts.push(Buffer.from(match[1], 'hex').toString('latin1'));
+  }
+  for (const match of raw.matchAll(/\(([^\\()]{1,160})\)/g)) {
+    parts.push(match[1]);
+  }
+  return parts.join('');
+}
 
 void test('secure shares bind to one issued version and never persist secrets', async () => {
   const { db, a, b, patientA, glu } = await fixture();
@@ -344,6 +356,97 @@ void test('secure shares bind to one issued version and never persist secrets', 
     }
     const unknown = await inspectPublicShare(db, 'f'.repeat(64));
     assert.equal(unknown.status, 'unavailable');
+  } finally {
+    await db.close();
+  }
+});
+
+void test('existing R1 shares are marked superseded after amendment and new stale shares are rejected', async () => {
+  const { db, a, patientA, glu } = await fixture();
+  try {
+    const verified = await completedOrder(db, a, patientA.id, glu.id);
+    const issued = await generateReport(db, a, verified.id, {});
+    const r1 = issued.reports[0];
+    const created = await createReportShare(
+      db,
+      a,
+      r1.id,
+      { expires_in: '24h' },
+      'https://lab.example',
+    );
+    const session = await verifyPublicShare(db, created.token, {
+      pin: created.pin,
+    });
+    const current = issued.results.find((row) => row.is_current)!;
+    const amended = await amendResult(db, a, current.id, {
+      numeric_value: '92',
+      reason: 'Repeat measurement',
+      version: Number(current.version),
+    });
+    const afterAmend = await inspectPublicShare(
+      db,
+      created.token,
+      session.sessionToken,
+    );
+    assert.equal(afterAmend.status, 'ready');
+    assert.equal(afterAmend.view?.report_version, 1);
+    assert.equal(afterAmend.view?.superseded, true);
+    assert.equal(afterAmend.view?.status, 'SUPERSEDED');
+    const stalePdf = await downloadPublicSharePdf(
+      withoutLiveClinical(db),
+      created.token,
+      session.sessionToken,
+    );
+    const staleText = pdfText(stalePdf.pdf);
+    assert.ok(staleText.includes('85'));
+    assert.equal(staleText.includes('92'), false);
+    assert.ok(staleText.includes('no longer the current official report'));
+    await assert.rejects(
+      createReportShare(db, a, r1.id, {}, 'https://lab.example'),
+      (error: unknown) =>
+        error instanceof ReportError && error.code === 'REPORT_NOT_CURRENT',
+    );
+    const latest = amended.results.find((row) => row.is_current)!;
+    const validated = await validateResult(db, a, latest.id, {
+      version: Number(latest.version),
+    });
+    const readyResult = validated.results.find((row) => row.is_current)!;
+    const recompleted = await verifyResult(db, a, readyResult.id, {
+      version: Number(readyResult.version),
+    });
+    const v2 = await generateReport(db, a, recompleted.id, {});
+    const r2 = v2.reports.find((row) => row.is_current)!;
+    const historical = await createReportShare(
+      db,
+      a,
+      r1.id,
+      { expires_in: '24h' },
+      'https://lab.example',
+    );
+    assert.equal(historical.share.report_version, 1);
+    assert.equal(historical.share.report_status, 'SUPERSEDED');
+    const currentShare = await createReportShare(
+      db,
+      a,
+      r2.id,
+      { expires_in: '24h' },
+      'https://lab.example',
+    );
+    assert.equal(currentShare.share.report_version, 2);
+    const currentSession = await verifyPublicShare(db, currentShare.token, {
+      pin: currentShare.pin,
+    });
+    const currentPdf = await downloadPublicSharePdf(
+      withoutLiveClinical(db),
+      currentShare.token,
+      currentSession.sessionToken,
+    );
+    const currentText = pdfText(currentPdf.pdf);
+    assert.ok(currentText.includes('92'));
+    assert.equal(
+      currentText.includes('no longer the current official report'),
+      false,
+    );
   } finally {
     await db.close();
   }

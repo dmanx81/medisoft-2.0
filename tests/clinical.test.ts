@@ -435,6 +435,145 @@ void test('prescription drafts, medications, finalization, immutability and numb
   }
 });
 
+void test('cancelled prescriptions cannot print and only the owning doctor or admin can cancel', async () => {
+  const { db, a, b, patientA, patientB } = await fixture();
+  try {
+    const doctorA = await staffDoctor(db, a, {
+      display_name: 'Dr Alice',
+      first_name: 'Alice',
+      last_name: 'Own',
+    });
+    const doctorB = await staffDoctor(db, a, {
+      display_name: 'Dr Bob',
+      first_name: 'Bob',
+      last_name: 'Other',
+      email: 'bob-other@example.test',
+    });
+    const doctorOtherOrg = await staffDoctor(db, b, { display_name: 'Dr Away' });
+    const alice: Principal = {
+      ...a,
+      userId: doctorA.user_id,
+      role: 'DOCTOR',
+      name: doctorA.display_name,
+    };
+    const bob: Principal = {
+      ...a,
+      userId: doctorB.user_id,
+      role: 'DOCTOR',
+      name: doctorB.display_name,
+    };
+    const draft = await createPrescription(db, alice, {
+      patient_id: patientA.id,
+      doctor_id: doctorA.id,
+      items: [item('Amoxicillin')],
+    });
+    await assert.rejects(
+      downloadPrescriptionPdf(db, alice, draft.id),
+      hasCode('CONFLICT'),
+    );
+    const rxA = await finalizePrescription(db, alice, draft.id, {
+      version: draft.version,
+    });
+    const validPdf = await downloadPrescriptionPdf(db, alice, rxA.id);
+    assert.equal(validPdf.pdf.subarray(0, 4).toString(), '%PDF');
+    const validText = pdfText(validPdf.pdf);
+    assert.match(validText, /Amoxicillin/);
+    assert.doesNotMatch(validText, /CANCELLED/);
+    await assert.rejects(
+      cancelPrescription(db, bob, rxA.id, {
+        reason: 'Not my prescription',
+        version: rxA.version,
+      }),
+      hasCode('FORBIDDEN'),
+    );
+    const stillFinal = await getPrescription(db, a, rxA.id);
+    assert.equal(stillFinal.status, 'FINALIZED');
+    const cancelledByOwner = await cancelPrescription(db, alice, rxA.id, {
+      reason: 'Therapy changed',
+      version: stillFinal.version,
+    });
+    assert.equal(cancelledByOwner.status, 'CANCELLED');
+    await assert.rejects(
+      downloadPrescriptionPdf(db, alice, cancelledByOwner.id),
+      hasCode('CONFLICT'),
+    );
+    await assert.rejects(
+      downloadPrescriptionPdf(db, a, cancelledByOwner.id),
+      hasCode('CONFLICT'),
+    );
+    const adminDraft = await createPrescription(db, a, {
+      patient_id: patientA.id,
+      doctor_id: doctorA.id,
+      items: [item('Ibuprofen')],
+    });
+    const adminRx = await finalizePrescription(db, a, adminDraft.id, {
+      version: adminDraft.version,
+    });
+    const cancelledByAdmin = await cancelPrescription(db, a, adminRx.id, {
+      reason: 'Administrative revocation',
+      version: adminRx.version,
+    });
+    assert.equal(cancelledByAdmin.status, 'CANCELLED');
+    const platformDraft = await createPrescription(db, a, {
+      patient_id: patientA.id,
+      doctor_id: doctorB.id,
+      items: [item('Azithromycin')],
+    });
+    const platformRx = await finalizePrescription(db, a, platformDraft.id, {
+      version: platformDraft.version,
+    });
+    const cancelledByPlatform = await cancelPrescription(
+      db,
+      asRole(a, 'PLATFORM_ADMIN'),
+      platformRx.id,
+      {
+        reason: 'Platform administrative override',
+        version: platformRx.version,
+      },
+    );
+    assert.equal(cancelledByPlatform.status, 'CANCELLED');
+    const foreignDraft = await createPrescription(db, b, {
+      patient_id: patientB.id,
+      doctor_id: doctorOtherOrg.id,
+      items: [item('Cefalexin')],
+    });
+    const foreign = await finalizePrescription(db, b, foreignDraft.id, {
+      version: foreignDraft.version,
+    });
+    await assert.rejects(
+      cancelPrescription(db, a, foreign.id, {
+        reason: 'Cross-organization attempt',
+        version: foreign.version,
+      }),
+      hasCode('NOT_FOUND'),
+    );
+    await assert.rejects(
+      cancelPrescription(db, alice, foreign.id, {
+        reason: 'Cross-organization attempt',
+        version: foreign.version,
+      }),
+      hasCode('NOT_FOUND'),
+    );
+    await assert.rejects(
+      downloadPrescriptionPdf(db, a, foreign.id),
+      hasCode('NOT_FOUND'),
+    );
+    await assert.rejects(
+      downloadPrescriptionPdf(db, alice, foreign.id),
+      hasCode('NOT_FOUND'),
+    );
+    const events = (
+      await db.query<{ action: string }>(
+        "SELECT action FROM audit_events WHERE entity_type='CLINICAL_PRESCRIPTION' AND entity_id=$1",
+        [cancelledByOwner.id],
+      )
+    ).rows.map((row) => row.action);
+    assert.ok(events.includes('CLINICAL_PRESCRIPTION_CANCELLED'));
+  } finally {
+    await db.close();
+  }
+});
+
 void test('finalized prescriptions render from frozen snapshots after live identity changes', async () => {
   const { db, a, patientA } = await fixture();
   try {

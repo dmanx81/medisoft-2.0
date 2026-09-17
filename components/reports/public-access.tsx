@@ -121,8 +121,8 @@ export function PublicReportAccess({
       </p>
       {view.superseded && (
         <p className="mt-4 rounded-md border border-coral/30 p-3 text-sm text-coral">
-          This is a previous official version. A later report may have been
-          issued.
+          This report is no longer the current official version. A later
+          report may have been issued after results were amended.
         </p>
       )}
       <dl className="mt-6 grid gap-3 text-sm">
