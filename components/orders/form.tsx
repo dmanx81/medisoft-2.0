@@ -154,9 +154,9 @@ export function OrderPatientPicker({
               ))}
             </ul>
           ) : (
-            <p className="mt-3 text-sm text-slate" role="status">
+            <output className="mt-3 block text-sm text-slate">
               {patientLookupMessage}
-            </p>
+            </output>
           )}
         </div>
       )}
