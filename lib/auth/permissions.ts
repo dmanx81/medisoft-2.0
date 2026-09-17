@@ -41,6 +41,8 @@ export const permissions = [
   'prescriptions:finalize',
   'prescriptions:cancel',
   'prescriptions:download',
+  'prescription-templates:read',
+  'prescription-templates:manage',
   'billing:read',
   'billing:create',
   'billing:issue',
@@ -132,6 +134,7 @@ const grants: Record<Role, readonly Permission[]> = {
     'prescriptions:finalize',
     'prescriptions:cancel',
     'prescriptions:download',
+    'prescription-templates:read',
   ],
   VIEWER: ['dashboard:read'],
 };

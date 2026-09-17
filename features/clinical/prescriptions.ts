@@ -1,6 +1,7 @@
 import type { QueryRunner } from '@/lib/db/query';
 import { can, type Permission, type Principal } from '@/lib/auth/permissions';
 import {
+  applyTemplateSchema,
   cancelSchema,
   fieldErrors,
   prescriptionDraftSchema,
@@ -19,9 +20,11 @@ import { buildPrescriptionSnapshot, prescriptionFromSnapshot } from './snapshot'
 import { renderPrescriptionPdf } from './pdf';
 import { medicationSummary } from './format';
 import { clinicalTransaction } from './transaction';
+import { getTemplate, requireOwnedTemplate } from './templates';
 
 const headerSelect = `p.id,p.organization_id,p.patient_id,p.doctor_id,p.status,p.prescription_number,
  p.prescribed_on::text,p.clinical_note,p.instructions,p.version,
+ COALESCE(p.source_template_id::text,'') AS source_template_id,
  COALESCE(p.finalized_at::text,'') AS finalized_at,COALESCE(p.finalized_by::text,'') AS finalized_by,
  COALESCE(p.cancelled_at::text,'') AS cancelled_at,COALESCE(p.cancelled_by::text,'') AS cancelled_by,
  p.cancellation_reason,p.created_by,p.updated_by,p.created_at::text,p.updated_at::text,
@@ -282,13 +285,17 @@ export async function createPrescription(
   return clinicalTransaction(db, async () => {
     await requirePatient(db, principal, parsed.data.patient_id);
     await requireDoctor(db, principal, parsed.data.doctor_id, false);
+    if (parsed.data.source_template_id)
+      await requireOwnedTemplate(db, principal, parsed.data.source_template_id, {
+        requireActive: true,
+      });
     const prescribedOn =
       parsed.data.prescribed_on || new Date().toISOString().slice(0, 10);
     const inserted = (
       await db.query<{ id: string }>(
         `INSERT INTO clinical_prescriptions(
- organization_id,patient_id,doctor_id,prescribed_on,clinical_note,instructions,created_by,updated_by)
- VALUES($1,$2,$3,$4,$5,$6,$7,$7) RETURNING id`,
+ organization_id,patient_id,doctor_id,prescribed_on,clinical_note,instructions,source_template_id,created_by,updated_by)
+ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$8) RETURNING id`,
         [
           principal.organizationId,
           parsed.data.patient_id,
@@ -296,6 +303,7 @@ export async function createPrescription(
           prescribedOn,
           parsed.data.clinical_note,
           parsed.data.instructions,
+          parsed.data.source_template_id ?? null,
           principal.userId,
         ],
       )
@@ -308,6 +316,9 @@ export async function createPrescription(
     );
     await audit(db, principal, inserted.id, 'CLINICAL_PRESCRIPTION_CREATED', {
       patient_id: parsed.data.patient_id,
+      ...(parsed.data.source_template_id
+        ? { source_template_id: parsed.data.source_template_id }
+        : {}),
     });
     return getPrescription(db, principal, inserted.id);
   });
@@ -356,6 +367,10 @@ export async function updatePrescription(
       );
     const doctorId = parsed.data.doctor_id ?? locked.doctor_id;
     await requireDoctor(db, principal, doctorId, false);
+    if (parsed.data.source_template_id)
+      await requireOwnedTemplate(db, principal, parsed.data.source_template_id, {
+        requireActive: true,
+      });
     const updated = (
       await db.query<{ id: string }>(
         `UPDATE clinical_prescriptions SET
@@ -363,6 +378,7 @@ export async function updatePrescription(
  prescribed_on=CASE WHEN $4='' THEN prescribed_on ELSE $4::date END,
  clinical_note=COALESCE($5,clinical_note),
  instructions=COALESCE($6,instructions),
+ source_template_id=CASE WHEN $9::uuid IS NULL THEN source_template_id ELSE $9::uuid END,
  updated_by=$7,version=version+1
  WHERE organization_id=$1 AND id=$2 AND version=$8 AND status='DRAFT' RETURNING id`,
         [
@@ -374,6 +390,7 @@ export async function updatePrescription(
           parsed.data.instructions,
           principal.userId,
           parsed.data.version,
+          parsed.data.source_template_id ?? null,
         ],
       )
     ).rows[0];
@@ -386,7 +403,101 @@ export async function updatePrescription(
     if (parsed.data.items)
       await replaceItems(db, principal.organizationId, locked.id, parsed.data.items);
     await audit(db, principal, locked.id, 'CLINICAL_PRESCRIPTION_UPDATED', {
-      fields: parsed.data.items ? ['items'] : ['details'],
+      fields: [
+        ...(parsed.data.items ? ['items'] : ['details']),
+        ...(parsed.data.source_template_id ? ['source_template_id'] : []),
+      ],
+    });
+    return getPrescription(db, principal, locked.id);
+  });
+}
+
+export async function applyTemplateToPrescription(
+  db: QueryRunner,
+  principal: Principal,
+  id: string,
+  input: unknown,
+): Promise<ClinicalPrescription> {
+  permit(principal, 'prescriptions:create');
+  const parsed = applyTemplateSchema.safeParse(input);
+  if (!parsed.success)
+    throw new ClinicalError(
+      400,
+      'VALIDATION',
+      'Select a template to copy.',
+      fieldErrors(parsed.error),
+    );
+  return clinicalTransaction(db, async () => {
+    const locked = (
+      await db.query<{
+        id: string;
+        status: string;
+        version: number;
+        doctor_id: string;
+      }>(
+        `SELECT id,status,version,doctor_id FROM clinical_prescriptions
+ WHERE organization_id=$1 AND id=$2 FOR UPDATE`,
+        [principal.organizationId, idValue(id)],
+      )
+    ).rows[0];
+    if (!locked) notFound();
+    if (locked.status !== 'DRAFT')
+      throw new ClinicalError(
+        409,
+        'CONFLICT',
+        'Templates can only be applied to draft prescriptions.',
+      );
+    if (locked.version !== parsed.data.version)
+      throw new ClinicalError(
+        409,
+        'CONFLICT',
+        'This prescription was changed by someone else. Reload and try again.',
+      );
+    await requireDoctor(db, principal, locked.doctor_id, false);
+    const templateLock = (
+      await db.query<{ id: string; is_active: boolean }>(
+        `SELECT id,is_active FROM prescription_templates
+ WHERE organization_id=$1 AND id=$2 FOR UPDATE`,
+        [principal.organizationId, parsed.data.template_id],
+      )
+    ).rows[0];
+    if (!templateLock)
+      throw new ClinicalError(404, 'NOT_FOUND', 'Prescription template not found.');
+    const template = await getTemplate(db, principal, templateLock.id);
+    if (!template.is_active)
+      throw new ClinicalError(
+        409,
+        'CONFLICT',
+        'Inactive templates cannot be applied to a prescription.',
+      );
+    await replaceItems(
+      db,
+      principal.organizationId,
+      locked.id,
+      template.items.map(({ id: _id, sort_order: _order, ...item }) => item),
+    );
+    const updated = (
+      await db.query<{ id: string }>(
+        `UPDATE clinical_prescriptions SET source_template_id=$3,updated_by=$4,version=version+1
+ WHERE organization_id=$1 AND id=$2 AND status='DRAFT' AND version=$5 RETURNING id`,
+        [
+          principal.organizationId,
+          locked.id,
+          template.id,
+          principal.userId,
+          locked.version,
+        ],
+      )
+    ).rows[0];
+    if (!updated)
+      throw new ClinicalError(
+        409,
+        'CONFLICT',
+        'This prescription was changed by someone else. Reload and try again.',
+      );
+    await audit(db, principal, locked.id, 'CLINICAL_PRESCRIPTION_UPDATED', {
+      fields: ['items', 'source_template_id'],
+      source_template_id: template.id,
     });
     return getPrescription(db, principal, locked.id);
   });

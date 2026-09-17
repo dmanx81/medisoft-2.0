@@ -37,7 +37,7 @@ void test('synthetic workflow statuses and development disclosure are visible', 
     assert.ok(html.includes(text));
 });
 void test('application navigation has unique protected routes and least-privilege visibility', () => {
-  assert.equal(new Set(navigation.map((n) => n.href)).size, 11);
+  assert.equal(new Set(navigation.map((n) => n.href)).size, 12);
   assert.deepEqual(
     navigation.filter((n) => can('VIEWER', n.permission)).map((n) => n.label),
     ['Dashboard'],

@@ -61,6 +61,14 @@ export const navigation: {
       'Maintain clinical doctor profiles used on prescriptions. Historical records stay attached to inactive doctors.',
   },
   {
+    label: 'Templates',
+    href: '/app/prescription-templates',
+    permission: 'prescription-templates:manage',
+    group: 'Practice',
+    description:
+      'Reusable medication sets that doctors can copy into a prescription draft. Changing a template never rewrites prescriptions already created from it.',
+  },
+  {
     label: 'Billing',
     href: '/app/billing',
     permission: 'billing:read',
