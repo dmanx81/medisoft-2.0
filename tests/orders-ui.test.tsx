@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { OrderList } from '../components/orders/list';
 import { OrderDetail } from '../components/orders/detail';
+import { OrderPatientPicker } from '../components/orders/form';
+import { PatientOrders } from '../components/orders/patient-orders';
 import type { LabOrder } from '../features/orders/types';
+import type { PatientSummary } from '../features/patients/types';
 void test('order list is searchable and hides create for read-only roles', () => {
   const html = renderToStaticMarkup(
     <OrderList
@@ -131,4 +134,55 @@ void test('order detail shows collection actions only when permitted', () => {
   assert.ok(received.includes('Received'));
   assert.ok(!received.includes('Partially collected'));
   assert.ok(!received.includes('Collect specimen'));
+});
+const summary: PatientSummary = {
+  id: '10000000-0000-4000-8000-000000000019',
+  patient_number: 'PAT-000005',
+  first_name: 'John',
+  last_name: 'Test',
+  date_of_birth: '1990-01-01',
+  phone: '',
+  email: 'john-test@example.test',
+  status: 'ACTIVE',
+  updated_at: '2026-09-17T00:00:00.000Z',
+};
+void test('order patient picker keeps Find outside the label and shows lookup states', () => {
+  const html = renderToStaticMarkup(
+    <OrderPatientPicker patient={null} onChange={() => {}} canCreatePatient />,
+  );
+  const label = html.slice(html.indexOf('<label'), html.indexOf('</label>'));
+  assert.ok(label.includes('Search patients'));
+  assert.ok(
+    !label.includes('Find'),
+    'Find must not be nested in the search label',
+  );
+  assert.ok(html.includes('>Find<'));
+  assert.ok(html.includes('Search patients…'));
+  assert.ok(html.includes('href="/app/patients/new"'));
+  assert.ok(html.includes('id="order-patient"'));
+  const selected = renderToStaticMarkup(
+    <OrderPatientPicker
+      patient={summary}
+      onChange={() => {}}
+      canCreatePatient
+    />,
+  );
+  assert.ok(selected.includes('John'));
+  assert.ok(selected.includes('PAT-000005'));
+  assert.ok(!selected.includes('id="order-patient"'));
+  assert.ok(!selected.includes('href="/app/patients/new"'));
+  const readonly = renderToStaticMarkup(
+    <OrderPatientPicker patient={null} onChange={() => {}} />,
+  );
+  assert.ok(!readonly.includes('href="/app/patients/new"'));
+});
+void test('patient record new-order link keeps the current patient in the query', () => {
+  const html = renderToStaticMarkup(
+    <PatientOrders patientId={summary.id} canCreate />,
+  );
+  assert.ok(html.includes(`/app/laboratory/orders/new?patient=${summary.id}`));
+  const readonly = renderToStaticMarkup(
+    <PatientOrders patientId={summary.id} canCreate={false} />,
+  );
+  assert.ok(!readonly.includes('/app/laboratory/orders/new'));
 });

@@ -1,21 +1,176 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import type { PatientSummary } from '@/features/patients/types';
 import type { LabTestSummary } from '@/features/catalogue/types';
 import { specimenLabels } from '@/features/catalogue/format';
 import { fastingLabels, priorityLabels } from '@/features/orders/format';
-type Failure = { code?: string; message?: string; fields?: Record<string, string> };
-export function OrderForm({
-  initialPatient,
+import {
+  labOrderSubmitBody,
+  patientSearchBody,
+  patientsFromSearchResponse,
+} from '@/features/orders/patient-lookup';
+type Failure = {
+  code?: string;
+  message?: string;
+  fields?: Record<string, string>;
+};
+type LookupStatus = 'idle' | 'loading' | 'empty' | 'error';
+export function OrderPatientPicker({
+  patient,
+  onChange,
+  canCreatePatient = false,
+  fieldError,
 }: {
-  initialPatient?: PatientSummary;
+  patient: PatientSummary | null;
+  onChange: (patient: PatientSummary | null) => void;
+  canCreatePatient?: boolean;
+  fieldError?: string;
 }) {
-  const router = useRouter();
   const [patientQuery, setPatientQuery] = useState('');
   const [patientHits, setPatientHits] = useState<PatientSummary[]>([]);
+  const [patientStatus, setPatientStatus] = useState<LookupStatus>('idle');
+  async function searchPatients() {
+    setPatientStatus('loading');
+    try {
+      const response = await fetch('/api/patients/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patientSearchBody(patientQuery)),
+        cache: 'no-store',
+      });
+      if (response.status === 401) {
+        window.location.assign('/login');
+        return;
+      }
+      if (!response.ok) {
+        setPatientHits([]);
+        setPatientStatus('error');
+        return;
+      }
+      const patients = patientsFromSearchResponse(await response.json());
+      setPatientHits(patients);
+      setPatientStatus(patients.length ? 'idle' : 'empty');
+    } catch {
+      setPatientHits([]);
+      setPatientStatus('error');
+    }
+  }
+  const patientLookupMessage =
+    patientStatus === 'loading'
+      ? 'Loading patients…'
+      : patientStatus === 'error'
+        ? 'Failed to load patients.'
+        : patientStatus === 'empty'
+          ? 'No patients found.'
+          : 'Search patients…';
+  return (
+    <section className="rounded-md border border-line bg-white p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-semibold">Patient</h2>
+        {canCreatePatient && !patient && (
+          <Link className="text-sm text-teal" href="/app/patients/new">
+            New patient
+          </Link>
+        )}
+      </div>
+      {patient ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p>
+            <span className="font-medium">
+              {patient.first_name} {patient.last_name}
+            </span>
+            <span className="ml-2 font-mono text-sm text-slate">
+              {patient.patient_number}
+            </span>
+          </p>
+          <button
+            type="button"
+            className="text-sm text-teal"
+            onClick={() => {
+              onChange(null);
+              setPatientHits([]);
+              setPatientStatus('idle');
+            }}
+          >
+            Change patient
+          </button>
+        </div>
+      ) : (
+        <div>
+          <label className="text-sm font-medium" htmlFor="order-patient">
+            Search patients
+          </label>
+          <div className="mt-2 flex gap-2">
+            <Input
+              id="order-patient"
+              type="search"
+              value={patientQuery}
+              onChange={(event) => setPatientQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void searchPatients();
+                }
+              }}
+              maxLength={150}
+              autoComplete="off"
+              placeholder="Name, number or identifier"
+            />
+            <button
+              type="button"
+              className="rounded-md bg-teal px-4 text-sm text-white disabled:opacity-50"
+              disabled={patientStatus === 'loading'}
+              onClick={() => void searchPatients()}
+            >
+              {patientStatus === 'loading' ? 'Finding…' : 'Find'}
+            </button>
+          </div>
+          {fieldError && (
+            <p className="mt-2 text-sm text-coral">{fieldError}</p>
+          )}
+          {patientHits.length > 0 ? (
+            <ul className="mt-3 divide-y divide-line">
+              {patientHits.map((hit) => (
+                <li key={hit.id}>
+                  <button
+                    type="button"
+                    className="w-full px-1 py-2 text-left text-sm hover:bg-mint"
+                    onClick={() => {
+                      onChange(hit);
+                      setPatientHits([]);
+                      setPatientStatus('idle');
+                    }}
+                  >
+                    {hit.first_name} {hit.last_name}
+                    <span className="ml-2 font-mono text-xs text-slate">
+                      {hit.patient_number}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-slate" role="status">
+              {patientLookupMessage}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+export function OrderForm({
+  initialPatient,
+  canCreatePatient = false,
+}: {
+  initialPatient?: PatientSummary | null;
+  canCreatePatient?: boolean;
+}) {
+  const router = useRouter();
   const [patient, setPatient] = useState<PatientSummary | null>(
     initialPatient ?? null,
   );
@@ -40,25 +195,6 @@ export function OrderForm({
     }
     return [...groups.entries()];
   }, [selected]);
-  async function searchPatients() {
-    const response = await fetch('/api/patients/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: patientQuery,
-        status: 'ACTIVE',
-        pageSize: 10,
-      }),
-      cache: 'no-store',
-    });
-    if (response.status === 401) {
-      window.location.assign('/login');
-      return;
-    }
-    if (!response.ok) return;
-    const data = (await response.json()) as { patients: PatientSummary[] };
-    setPatientHits(data.patients);
-  }
   async function searchTests() {
     const response = await fetch('/api/tests/search', {
       method: 'POST',
@@ -90,18 +226,20 @@ export function OrderForm({
       const response = await fetch('/api/lab-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: {
-            patient_id: patient?.id ?? '',
-            priority,
-            ordering_physician_name: physician,
-            clinical_notes: notes,
-            fasting_status: fasting,
-            external_reference: reference,
-            test_ids: selected.map((test) => test.id),
-          },
-          place,
-        }),
+        body: JSON.stringify(
+          labOrderSubmitBody(
+            patient,
+            {
+              priority,
+              ordering_physician_name: physician,
+              clinical_notes: notes,
+              fasting_status: fasting,
+              external_reference: reference,
+            },
+            selected.map((test) => test.id),
+            place,
+          ),
+        ),
       });
       const body = (await response.json()) as Failure & { id?: string };
       if (response.status === 401) {
@@ -114,7 +252,9 @@ export function OrderForm({
       }
       router.push(`/app/laboratory/orders/${body.id}?saved=1`);
     } catch {
-      setFailure({ message: 'The order could not be saved. Please try again.' });
+      setFailure({
+        message: 'The order could not be saved. Please try again.',
+      });
     } finally {
       setBusy(false);
     }
@@ -128,98 +268,51 @@ export function OrderForm({
       }}
     >
       {failure && (
-        <p className="rounded-md border border-coral/30 bg-white p-3 text-sm text-coral" role="alert">
+        <p
+          className="rounded-md border border-coral/30 bg-white p-3 text-sm text-coral"
+          role="alert"
+        >
           {failure.message || 'Check the highlighted fields.'}
         </p>
       )}
-      <section className="rounded-md border border-line bg-white p-5">
-        <h2 className="mb-4 font-semibold">Patient</h2>
-        {patient ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p>
-              <span className="font-medium">
-                {patient.first_name} {patient.last_name}
-              </span>
-              <span className="ml-2 font-mono text-sm text-slate">
-                {patient.patient_number}
-              </span>
-            </p>
-            <button
-              type="button"
-              className="text-sm text-teal"
-              onClick={() => setPatient(null)}
-            >
-              Change patient
-            </button>
-          </div>
-        ) : (
-          <div>
-            <label className="text-sm font-medium" htmlFor="order-patient">
-              Search patients
-              <div className="mt-2 flex gap-2">
-                <Input
-                  id="order-patient"
-                  value={patientQuery}
-                  onChange={(event) => setPatientQuery(event.target.value)}
-                  placeholder="Name, number or identifier"
-                />
-                <button
-                  type="button"
-                  className="rounded-md bg-teal px-4 text-sm text-white"
-                  onClick={() => void searchPatients()}
-                >
-                  Find
-                </button>
-              </div>
-            </label>
-            {failure?.fields?.patient_id && (
-              <p className="mt-2 text-sm text-coral">{failure.fields.patient_id}</p>
-            )}
-            <ul className="mt-3 divide-y divide-line">
-              {patientHits.map((hit) => (
-                <li key={hit.id}>
-                  <button
-                    type="button"
-                    className="w-full px-1 py-2 text-left text-sm hover:bg-mint"
-                    onClick={() => {
-                      setPatient(hit);
-                      setPatientHits([]);
-                    }}
-                  >
-                    {hit.first_name} {hit.last_name}
-                    <span className="ml-2 font-mono text-xs text-slate">
-                      {hit.patient_number}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </section>
+      <OrderPatientPicker
+        patient={patient}
+        onChange={setPatient}
+        canCreatePatient={canCreatePatient}
+        fieldError={failure?.fields?.patient_id}
+      />
       <section className="rounded-md border border-line bg-white p-5">
         <h2 className="mb-4 font-semibold">Ordered tests</h2>
         <label className="text-sm font-medium" htmlFor="order-tests">
           Search active catalogue tests
-          <div className="mt-2 flex gap-2">
-            <Input
-              id="order-tests"
-              value={testQuery}
-              onChange={(event) => setTestQuery(event.target.value)}
-              placeholder="Code or name"
-            />
-            <button
-              type="button"
-              className="rounded-md bg-teal px-4 text-sm text-white"
-              onClick={() => void searchTests()}
-            >
-              Find
-            </button>
-          </div>
         </label>
+        <div className="mt-2 flex gap-2">
+          <Input
+            id="order-tests"
+            value={testQuery}
+            onChange={(event) => setTestQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void searchTests();
+              }
+            }}
+            placeholder="Code or name"
+          />
+          <button
+            type="button"
+            className="rounded-md bg-teal px-4 text-sm text-white"
+            onClick={() => void searchTests()}
+          >
+            Find
+          </button>
+        </div>
         <ul className="mt-3 divide-y divide-line">
           {testHits.map((test) => (
-            <li key={test.id} className="flex items-center justify-between gap-3 py-2">
+            <li
+              key={test.id}
+              className="flex items-center justify-between gap-3 py-2"
+            >
               <div>
                 <span className="font-mono text-sm">{test.code}</span>{' '}
                 {test.name}
@@ -242,7 +335,10 @@ export function OrderForm({
         ) : (
           <ul className="mt-4 divide-y divide-line rounded-md border border-line">
             {selected.map((test) => (
-              <li key={test.id} className="flex items-center justify-between px-3 py-2 text-sm">
+              <li
+                key={test.id}
+                className="flex items-center justify-between px-3 py-2 text-sm"
+              >
                 <span>
                   <span className="font-mono">{test.code}</span> {test.name} ·{' '}
                   {specimenLabels[test.specimen_type]}
@@ -268,7 +364,8 @@ export function OrderForm({
             <ul className="mt-2 grid gap-1">
               {expected.map(([type, tests]) => (
                 <li key={type}>
-                  {specimenLabels[type]}: {tests.map((test) => test.code).join(', ')}
+                  {specimenLabels[type]}:{' '}
+                  {tests.map((test) => test.code).join(', ')}
                 </li>
               ))}
             </ul>
@@ -312,7 +409,10 @@ export function OrderForm({
             ))}
           </NativeSelect>
         </label>
-        <label className="text-sm font-medium md:col-span-2" htmlFor="order-physician">
+        <label
+          className="text-sm font-medium md:col-span-2"
+          htmlFor="order-physician"
+        >
           Ordering physician
           <Input
             id="order-physician"
@@ -322,7 +422,10 @@ export function OrderForm({
             className="mt-2"
           />
         </label>
-        <label className="text-sm font-medium md:col-span-2" htmlFor="order-reference">
+        <label
+          className="text-sm font-medium md:col-span-2"
+          htmlFor="order-reference"
+        >
           External reference
           <Input
             id="order-reference"
@@ -332,7 +435,10 @@ export function OrderForm({
             className="mt-2"
           />
         </label>
-        <label className="text-sm font-medium md:col-span-2" htmlFor="order-notes">
+        <label
+          className="text-sm font-medium md:col-span-2"
+          htmlFor="order-notes"
+        >
           Clinical notes
           <textarea
             id="order-notes"

@@ -40,7 +40,7 @@ export function PatientOrders({
         {canCreate && (
           <Link
             className="text-sm text-teal"
-            href="/app/laboratory/orders/new"
+            href={`/app/laboratory/orders/new?patient=${encodeURIComponent(patientId)}`}
           >
             New order
           </Link>
@@ -48,17 +48,23 @@ export function PatientOrders({
       </div>
       {error && <p className="text-sm text-coral">{error}</p>}
       {result && result.orders.length === 0 && (
-        <p className="text-sm text-slate">No laboratory orders for this patient.</p>
+        <p className="text-sm text-slate">
+          No laboratory orders for this patient.
+        </p>
       )}
       {result && result.orders.length > 0 && (
         <ul className="divide-y divide-line text-sm">
           {result.orders.map((order) => (
             <li key={order.id} className="flex justify-between py-2">
-              <Link className="font-mono text-teal" href={`/app/laboratory/orders/${order.id}`}>
+              <Link
+                className="font-mono text-teal"
+                href={`/app/laboratory/orders/${order.id}`}
+              >
                 {order.order_number}
               </Link>
               <span>
-                {orderStatusLabels[order.status]} · {stampLabel(order.ordered_at || order.created_at)}
+                {orderStatusLabels[order.status]} ·{' '}
+                {stampLabel(order.ordered_at || order.created_at)}
               </span>
             </li>
           ))}
