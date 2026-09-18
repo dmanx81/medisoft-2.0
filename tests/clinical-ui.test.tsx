@@ -5,9 +5,11 @@ import { DoctorsList } from '../components/clinical/doctors-list';
 import { PrescriptionDetail } from '../components/clinical/prescription-detail';
 import { PatientPrescriptions } from '../components/clinical/patient-prescriptions';
 import { BrandingForm } from '../components/clinical/branding-form';
+import { TemplatesList } from '../components/clinical/templates-list';
+import { TemplatePicker } from '../components/clinical/template-picker';
 import { PatientDetail } from '../components/patients/detail';
 import { emptyPatient } from '../features/patients/validation';
-import type { ClinicalDoctor, ClinicalPrescription } from '../features/clinical/types';
+import type { ClinicalDoctor, ClinicalPrescription, PrescriptionTemplate } from '../features/clinical/types';
 import type { Patient } from '../features/patients/types';
 
 const patient: Patient = {
@@ -57,6 +59,7 @@ const prescription: ClinicalPrescription = {
   prescribed_on: '2026-09-16',
   clinical_note: '',
   instructions: '',
+  source_template_id: '',
   version: 2,
   finalized_at: '2026-09-16T10:00:00.000Z',
   finalized_by: 'user',
@@ -123,6 +126,28 @@ void test('prescription workflow exposes medications and A5 print actions', () =
   assert.ok(detail.includes('/api/clinical-prescriptions/'));
 });
 
+void test('cancelled prescriptions do not expose print or download actions', () => {
+  const html = renderToStaticMarkup(
+    <PrescriptionDetail
+      prescription={{
+        ...prescription,
+        status: 'CANCELLED',
+        cancelled_at: '2026-09-16T12:00:00.000Z',
+        cancelled_by: 'user',
+        cancellation_reason: 'Therapy changed',
+      }}
+      canFinalize
+      canCancel
+      canCreate
+      canDownload
+    />,
+  );
+  assert.ok(html.includes('Cancelled'));
+  assert.equal(html.includes('Preview'), false);
+  assert.equal(html.includes('Download PDF'), false);
+  assert.equal(html.includes('href="/api/clinical-prescriptions/'), false);
+});
+
 void test('patient record prescriptions tab and branding form stay in the existing design', () => {
   const html = renderToStaticMarkup(
     <PatientDetail
@@ -156,4 +181,71 @@ void test('patient record prescriptions tab and branding form stay in the existi
   );
   assert.ok(branding.includes('Clinical document branding'));
   assert.ok(branding.includes('Upload logo'));
+});
+
+const template: PrescriptionTemplate = {
+  id: '00000000-0000-4000-8000-000000000006',
+  organization_id: 'org',
+  name: 'Acute Tonsillitis',
+  description: 'First-line therapy',
+  category: 'ENT',
+  is_active: true,
+  version: 1,
+  created_by: 'user',
+  updated_by: 'user',
+  created_at: '2026-09-17',
+  updated_at: '2026-09-17',
+  item_count: 2,
+  items: [
+    {
+      id: '00000000-0000-4000-8000-000000000007',
+      sort_order: 1,
+      medication_name: 'Amoxicillin',
+      strength: '500 mg',
+      form: 'Capsule',
+      dose: '1 capsule',
+      route: 'Oral',
+      frequency: '3 times daily',
+      duration: '7 days',
+      quantity: '21 capsules',
+      instructions: 'After food',
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000008',
+      sort_order: 2,
+      medication_name: 'Paracetamol',
+      strength: '500 mg',
+      form: 'Tablet',
+      dose: '1 tablet',
+      route: 'Oral',
+      frequency: 'As needed',
+      duration: '',
+      quantity: '',
+      instructions: 'Maximum 3/day',
+    },
+  ],
+};
+
+void test('prescription template management follows existing clinical administration patterns', () => {
+  const html = renderToStaticMarkup(
+    <TemplatesList
+      initial={{ templates: [template], total: 1, page: 1, pageSize: 20 }}
+      canManage
+    />,
+  );
+  assert.ok(html.includes('Search templates'));
+  assert.ok(html.includes('New template'));
+  assert.ok(html.includes('Acute Tonsillitis'));
+  assert.ok(html.includes('ENT'));
+  const readonly = renderToStaticMarkup(
+    <TemplatesList
+      initial={{ templates: [], total: 0, page: 1, pageSize: 20 }}
+      canManage={false}
+    />,
+  );
+  assert.ok(!readonly.includes('href="/app/prescription-templates/new"'));
+  const picker = renderToStaticMarkup(
+    <TemplatePicker onApply={() => undefined} />,
+  );
+  assert.ok(picker.includes('Use template'));
 });

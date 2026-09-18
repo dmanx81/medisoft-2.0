@@ -68,6 +68,7 @@ export const prescriptionDraftSchema = z.object({
   clinical_note: text(2000),
   instructions: text(2000),
   items: z.array(prescriptionItemSchema).max(40).default([]),
+  source_template_id: z.uuid().optional(),
 });
 
 export const prescriptionUpdateSchema = z.object({
@@ -80,6 +81,7 @@ export const prescriptionUpdateSchema = z.object({
   clinical_note: text(2000).optional(),
   instructions: text(2000).optional(),
   items: z.array(prescriptionItemSchema).max(40).optional(),
+  source_template_id: z.uuid().optional(),
   version: z.number().int().positive(),
 });
 
@@ -112,6 +114,32 @@ export const brandingSchema = z.object({
 
 export const prescriptionIdSchema = z.uuid();
 export const doctorIdSchema = z.uuid();
+export const templateIdSchema = z.uuid();
+
+export const templateSchema = z.object({
+  name: requiredName(160, 'Template name is required'),
+  description: text(2000),
+  category: text(120),
+  is_active: z.boolean().default(true),
+  items: z.array(prescriptionItemSchema).max(40).default([]),
+});
+
+export const templateUpdateSchema = templateSchema.extend({
+  version: z.number().int().positive(),
+});
+
+export const templateSearchSchema = z.object({
+  query: z.string().trim().max(150).default(''),
+  category: z.string().trim().max(120).default(''),
+  page: z.number().int().min(1).max(100000).default(1),
+  pageSize: z.number().int().min(1).max(50).default(20),
+  status: z.enum(['ALL', 'ACTIVE', 'INACTIVE']).default('ALL'),
+});
+
+export const applyTemplateSchema = z.object({
+  template_id: z.uuid(),
+  version: z.number().int().positive(),
+});
 
 export function fieldErrors(error: z.ZodError): Record<string, string> {
   return Object.fromEntries(
@@ -129,4 +157,8 @@ export const emptyDoctor = doctorSchema.parse({
 
 export const emptyItem = prescriptionItemSchema.parse({
   medication_name: 'Medication',
+});
+
+export const emptyTemplate = templateSchema.parse({
+  name: 'Template',
 });

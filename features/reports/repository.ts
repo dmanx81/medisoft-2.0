@@ -164,7 +164,11 @@ export async function getReportContext(
   const reports = await listReportsForOrder(db, principal, order.id);
   const current = reports.find((row) => row.is_current) ?? null;
   let needsNew = false;
-  if (state.complete && current) {
+  if (!current && reports.length > 0) {
+    needsNew = true;
+  } else if (current && !state.complete) {
+    needsNew = true;
+  } else if (state.complete && current) {
     const live = await buildReportSnapshot(db, principal, order.id);
     const stored = (
       await db.query<{ snapshot: LabReportSnapshot | string }>(
@@ -251,22 +255,26 @@ export async function generateReport(
       `SELECT id FROM lab_reports WHERE organization_id=$1 AND order_id=$2 FOR UPDATE`,
       [principal.organizationId, locked.id],
     );
-    const current = (
+    const latest = (
       await db.query<LabReport & { snapshot: LabReportSnapshot | string }>(
         `SELECT ${reportSelect},r.snapshot
  FROM lab_reports r
  JOIN users iss ON iss.organization_id=r.organization_id AND iss.id=r.issued_by
- WHERE r.organization_id=$1 AND r.order_id=$2 AND r.is_current
+ WHERE r.organization_id=$1 AND r.order_id=$2
+ ORDER BY r.report_version DESC
  LIMIT 1`,
         [principal.organizationId, locked.id],
       )
     ).rows[0];
+    const predecessor = latest ? mapReport(latest) : null;
+    const current =
+      predecessor && predecessor.is_current ? predecessor : null;
     const clinical = await buildReportSnapshot(db, principal, locked.id);
-    if (current) {
+    if (current && latest) {
       const previous =
-        typeof current.snapshot === 'string'
-          ? (JSON.parse(current.snapshot) as LabReportSnapshot)
-          : current.snapshot;
+        typeof latest.snapshot === 'string'
+          ? (JSON.parse(latest.snapshot) as LabReportSnapshot)
+          : latest.snapshot;
       if (
         JSON.stringify(snapshotResultIds(clinical)) ===
         JSON.stringify(snapshotResultIds(previous))
@@ -277,7 +285,9 @@ export async function generateReport(
           'A current report already exists for these verified results.',
         );
     }
-    const nextVersion = current ? Number(current.report_version) + 1 : 1;
+    const nextVersion = predecessor
+      ? Number(predecessor.report_version) + 1
+      : 1;
     const reportNumber = `${locked.order_number}-R${nextVersion}`;
     const issuedAt = new Date().toISOString();
     const snapshot = attachIssuance(clinical, {
@@ -309,35 +319,37 @@ export async function generateReport(
           issuedAt,
           JSON.stringify(snapshot),
           principal.userId,
-          current?.id ?? null,
+          predecessor?.id ?? null,
         ],
       )
     ).rows[0];
-    if (current) {
+    if (predecessor) {
       await db.query(
         `UPDATE lab_reports SET successor_id=$3,updated_by=$4
  WHERE organization_id=$1 AND id=$2`,
-        [principal.organizationId, current.id, inserted.id, principal.userId],
+        [principal.organizationId, predecessor.id, inserted.id, principal.userId],
       );
-      await audit(
-        db,
-        principal,
-        'LAB_REPORT',
-        current.id,
-        'LAB_REPORT_SUPERSEDED',
-        {
-          order_id: locked.id,
-          successor_id: inserted.id,
-          from_version: current.report_version,
-          to_version: nextVersion,
-        },
-      );
+      if (current) {
+        await audit(
+          db,
+          principal,
+          'LAB_REPORT',
+          current.id,
+          'LAB_REPORT_SUPERSEDED',
+          {
+            order_id: locked.id,
+            successor_id: inserted.id,
+            from_version: current.report_version,
+            to_version: nextVersion,
+          },
+        );
+      }
     }
     await audit(db, principal, 'LAB_REPORT', inserted.id, 'LAB_REPORT_GENERATED', {
       order_id: locked.id,
       report_number: reportNumber,
       report_version: nextVersion,
-      supersedes_id: current?.id ?? null,
+      supersedes_id: predecessor?.id ?? null,
     });
     return orderWithReports(db, principal, locked.id);
   });

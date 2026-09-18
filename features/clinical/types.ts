@@ -79,6 +79,7 @@ export type ClinicalPrescription = {
   prescribed_on: string;
   clinical_note: string;
   instructions: string;
+  source_template_id: string;
   version: number;
   finalized_at: string;
   finalized_by: string;
@@ -107,6 +108,43 @@ export type PrescriptionWorkItem = {
 
 export type PrescriptionPage = {
   prescriptions: PrescriptionWorkItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type PrescriptionTemplateItem = PrescriptionItem;
+
+export type PrescriptionTemplateItemInput = PrescriptionItemInput;
+
+export type PrescriptionTemplate = {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string;
+  category: string;
+  is_active: boolean;
+  version: number;
+  created_by: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+  items: PrescriptionTemplateItem[];
+  item_count: number;
+};
+
+export type PrescriptionTemplateSummary = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  is_active: boolean;
+  item_count: number;
+  updated_at: string;
+};
+
+export type PrescriptionTemplatePage = {
+  templates: PrescriptionTemplateSummary[];
   total: number;
   page: number;
   pageSize: number;

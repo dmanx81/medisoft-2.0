@@ -22,6 +22,12 @@ export const clinicalAuditLabels: Record<string, string> = {
   CLINICAL_PRESCRIPTION_FINALIZED: 'Prescription finalized',
   CLINICAL_PRESCRIPTION_CANCELLED: 'Prescription cancelled',
   CLINICAL_PRESCRIPTION_DOWNLOADED: 'Prescription PDF downloaded',
+  PRESCRIPTION_TEMPLATE_CREATED: 'Prescription template created',
+  PRESCRIPTION_TEMPLATE_UPDATED: 'Prescription template updated',
+  PRESCRIPTION_TEMPLATE_DUPLICATED: 'Prescription template duplicated',
+  PRESCRIPTION_TEMPLATE_ACTIVATED: 'Prescription template activated',
+  PRESCRIPTION_TEMPLATE_DEACTIVATED: 'Prescription template deactivated',
+  PRESCRIPTION_TEMPLATE_DELETED: 'Prescription template deleted',
   ORGANIZATION_BRANDING_UPDATED: 'Organization branding updated',
   ORGANIZATION_LOGO_UPDATED: 'Organization logo updated',
 };

@@ -6,7 +6,10 @@ import { emptyPatient } from '../../features/patients/validation';
 import { createPatient } from '../../features/patients/repository';
 import { createDoctor } from '../../features/clinical/doctors';
 import type { Principal } from '../../lib/auth/permissions';
-import type { ClinicalPrescription } from '../../features/clinical/types';
+import type {
+  ClinicalPrescription,
+  PrescriptionTemplate,
+} from '../../features/clinical/types';
 
 const db = new PGlite();
 let principal: Principal | null = null;
@@ -28,17 +31,22 @@ mock.module('../../lib/db/index.ts', {
   },
 });
 
-const doctorsRoute = await import('../../app/api/clinical-doctors/route');
-const doctorDetailRoute = await import('../../app/api/clinical-doctors/[id]/route');
-const prescriptionsRoute = await import('../../app/api/clinical-prescriptions/route');
-const prescriptionDetailRoute = await import(
-  '../../app/api/clinical-prescriptions/[id]/route'
+const templatesRoute = await import('../../app/api/prescription-templates/route');
+const templateSearchRoute = await import(
+  '../../app/api/prescription-templates/search/route'
 );
-const finalizeRoute = await import(
-  '../../app/api/clinical-prescriptions/[id]/finalize/route'
+const templateDetailRoute = await import(
+  '../../app/api/prescription-templates/[id]/route'
 );
-const pdfRoute = await import('../../app/api/clinical-prescriptions/[id]/pdf/route');
-const brandingRoute = await import('../../app/api/organization/branding/route');
+const duplicateRoute = await import(
+  '../../app/api/prescription-templates/[id]/duplicate/route'
+);
+const applyRoute = await import(
+  '../../app/api/clinical-prescriptions/[id]/apply-template/route'
+);
+const prescriptionsRoute = await import(
+  '../../app/api/clinical-prescriptions/route'
+);
 
 function request(
   method: string,
@@ -52,7 +60,7 @@ function request(
   });
 }
 
-void test('clinical APIs enforce origin, tenant scope and finalize permissions', async () => {
+void test('template APIs enforce origin, tenant scope and draft-only apply', async () => {
   try {
     for (const migration of [
       '001_foundation.sql',
@@ -75,7 +83,7 @@ void test('clinical APIs enforce origin, tenant scope and finalize permissions',
       );
     const users: Principal[] = [];
     const extras: { patient: string; doctor: string }[] = [];
-    for (const slug of ['rx-a', 'rx-b']) {
+    for (const slug of ['tpl-a', 'tpl-b']) {
       const org = (
         await db.query<{ id: string }>(
           "INSERT INTO organizations(name,slug,type,country) VALUES($1,$1,'CLINIC','AL') RETURNING id",
@@ -125,69 +133,76 @@ void test('clinical APIs enforce origin, tenant scope and finalize permissions',
       extras.push({ patient: patient.id, doctor: doctor.id });
     }
     principal = users[0];
-    const forged = await prescriptionsRoute.POST(
+    const forged = await templatesRoute.POST(
       request(
         'POST',
-        {
-          patient_id: extras[0].patient,
-          doctor_id: extras[0].doctor,
-          items: [{ medication_name: 'Amoxicillin' }],
-        },
+        { name: 'Acute Tonsillitis', items: [{ medication_name: 'Amoxicillin' }] },
         'https://evil.example',
       ),
     );
     assert.equal(forged.status, 403);
-    const created = await prescriptionsRoute.POST(
+    const created = await templatesRoute.POST(
       request('POST', {
-        patient_id: extras[0].patient,
-        doctor_id: extras[0].doctor,
-        items: [{ medication_name: 'Amoxicillin', strength: '500 mg' }],
+        name: 'Acute Tonsillitis',
+        category: 'ENT',
+        items: [
+          { medication_name: 'Amoxicillin', strength: '500 mg' },
+          { medication_name: 'Paracetamol', strength: '500 mg' },
+        ],
       }),
     );
     assert.equal(created.status, 200);
-    const prescription = (await created.json()) as ClinicalPrescription;
-    principal = { ...users[0], role: 'RECEPTIONIST' };
-    const denied = await finalizeRoute.POST(
-      request('POST', { version: prescription.version }),
-      { params: Promise.resolve({ id: prescription.id }) },
+    const template = (await created.json()) as PrescriptionTemplate;
+    assert.equal(template.items.length, 2);
+    principal = { ...users[0], role: 'DOCTOR' };
+    const doctorCreate = await templatesRoute.POST(
+      request('POST', { name: 'Doctor pack', items: [{ medication_name: 'X' }] }),
     );
-    assert.equal(denied.status, 403);
+    assert.equal(doctorCreate.status, 403);
     principal = users[0];
-    const finalized = await finalizeRoute.POST(
-      request('POST', { version: prescription.version }),
-      { params: Promise.resolve({ id: prescription.id }) },
+    const copy = await duplicateRoute.POST(request('POST'), {
+      params: Promise.resolve({ id: template.id }),
+    });
+    assert.equal(copy.status, 200);
+    const duplicated = (await copy.json()) as PrescriptionTemplate;
+    assert.equal(duplicated.name, 'Acute Tonsillitis (copy)');
+    const rx = await prescriptionsRoute.POST(
+      request('POST', {
+        patient_id: extras[0].patient,
+        doctor_id: extras[0].doctor,
+        items: [],
+      }),
     );
-    assert.equal(finalized.status, 200);
-    const issued = (await finalized.json()) as ClinicalPrescription;
+    assert.equal(rx.status, 200);
+    const draft = (await rx.json()) as ClinicalPrescription;
+    const applied = await applyRoute.POST(
+      request('POST', { template_id: template.id, version: draft.version }),
+      { params: Promise.resolve({ id: draft.id }) },
+    );
+    assert.equal(applied.status, 200);
+    const populated = (await applied.json()) as ClinicalPrescription;
+    assert.equal(populated.items.length, 2);
+    assert.equal(populated.source_template_id, template.id);
     principal = users[1];
-    const hidden = await prescriptionDetailRoute.GET(request('GET'), {
-      params: Promise.resolve({ id: issued.id }),
+    const hidden = await templateDetailRoute.GET(request('GET'), {
+      params: Promise.resolve({ id: template.id }),
     });
     assert.equal(hidden.status, 404);
-    const hiddenPdf = await pdfRoute.GET(request('GET'), {
-      params: Promise.resolve({ id: issued.id }),
-    });
-    assert.equal(hiddenPdf.status, 404);
-    const hiddenDoctor = await doctorDetailRoute.GET(request('GET'), {
-      params: Promise.resolve({ id: extras[0].doctor }),
-    });
-    assert.equal(hiddenDoctor.status, 404);
-    principal = users[0];
-    const pdf = await pdfRoute.GET(request('GET'), {
-      params: Promise.resolve({ id: issued.id }),
-    });
-    assert.equal(pdf.status, 200);
-    assert.equal(pdf.headers.get('content-type'), 'application/pdf');
-    const branding = await brandingRoute.PATCH(
-      request('PATCH', { legal_name: 'Care Centre', city: 'Tirana' }),
+    const hiddenApply = await applyRoute.POST(
+      request('POST', { template_id: template.id, version: 1 }),
+      { params: Promise.resolve({ id: draft.id }) },
     );
-    assert.equal(branding.status, 200);
-    principal = users[1];
-    const otherBranding = await brandingRoute.GET(request('GET'));
-    const body = (await otherBranding.json()) as { legal_name: string };
-    assert.notEqual(body.legal_name, 'Care Centre');
-    assert.equal(doctorsRoute.DELETE().status, 405);
-    assert.equal(prescriptionsRoute.DELETE().status, 405);
+    assert.equal(hiddenApply.status, 404);
+    principal = users[0];
+    const listed = await templateSearchRoute.POST(
+      request('POST', { query: 'Tonsillitis' }),
+    );
+    assert.equal(listed.status, 200);
+    assert.equal(templatesRoute.DELETE().status, 405);
+    const removed = await templateDetailRoute.DELETE(request('DELETE'), {
+      params: Promise.resolve({ id: duplicated.id }),
+    });
+    assert.equal(removed.status, 200);
   } finally {
     await db.close();
   }

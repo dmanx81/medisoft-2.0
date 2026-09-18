@@ -82,7 +82,7 @@ export function PrescriptionDetail({
             Finalize / sign
           </button>
         )}
-        {canDownload && current.status !== 'DRAFT' && current.prescription_number && (
+        {canDownload && current.status === 'FINALIZED' && current.prescription_number && (
           <>
             <a className="rounded-md border border-line px-3 py-1.5 text-sm" href={pdfHref} target="_blank" rel="noreferrer">
               Preview

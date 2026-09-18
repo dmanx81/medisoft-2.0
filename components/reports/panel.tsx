@@ -112,7 +112,7 @@ export function ReportPanel({
             onSave(payload);
           }}
         >
-          {current ? 'Issue new report version' : 'Generate official report'}
+          {current || reports.length > 0 ? 'Issue new report version' : 'Generate official report'}
         </button>
       )}
       {canGenerate && !eligible && !complete && (
@@ -193,7 +193,11 @@ function ReportHistoryRow({
           <p className="text-xs text-slate">
             {reportStatusLabels[report.status]} · Issued {stampLabel(report.issued_at)} by{' '}
             {report.issued_by_name}
-            {report.is_current ? ' · Current' : ' · Previous version'}
+            {report.is_current
+              ? ' · Current'
+              : report.successor_id
+                ? ' · Previous version'
+                : ' · No longer current'}
           </p>
         </div>
         {canDownload && (
