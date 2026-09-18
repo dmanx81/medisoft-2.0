@@ -126,6 +126,28 @@ void test('prescription workflow exposes medications and A5 print actions', () =
   assert.ok(detail.includes('/api/clinical-prescriptions/'));
 });
 
+void test('cancelled prescriptions do not expose print or download actions', () => {
+  const html = renderToStaticMarkup(
+    <PrescriptionDetail
+      prescription={{
+        ...prescription,
+        status: 'CANCELLED',
+        cancelled_at: '2026-09-16T12:00:00.000Z',
+        cancelled_by: 'user',
+        cancellation_reason: 'Therapy changed',
+      }}
+      canFinalize
+      canCancel
+      canCreate
+      canDownload
+    />,
+  );
+  assert.ok(html.includes('Cancelled'));
+  assert.equal(html.includes('Preview'), false);
+  assert.equal(html.includes('Download PDF'), false);
+  assert.equal(html.includes('href="/api/clinical-prescriptions/'), false);
+});
+
 void test('patient record prescriptions tab and branding form stay in the existing design', () => {
   const html = renderToStaticMarkup(
     <PatientDetail

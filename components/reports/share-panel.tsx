@@ -46,12 +46,24 @@ export function ReportSharePanel({
     };
   }, [canShare, report.id]);
   if (!canShare) return null;
+  const awaitingReplacement =
+    report.status === 'SUPERSEDED' && !report.successor_id;
   return (
     <div className="mt-4 border-t border-line pt-4">
       <h4 className="mb-2 text-sm font-medium">
         Secure share · {report.report_number}
-        {report.is_current ? '' : ' · previous version'}
+        {report.is_current
+          ? ''
+          : awaitingReplacement
+            ? ' · no longer current'
+            : ' · previous version'}
       </h4>
+      {awaitingReplacement ? (
+        <p className="mb-3 text-sm text-coral">
+          This report is no longer current after a result amendment. Create a
+          patient link from the replacement report once it is issued.
+        </p>
+      ) : (
       <form
         className="grid gap-2 md:grid-cols-2"
         onSubmit={async (event) => {
@@ -141,6 +153,7 @@ export function ReportSharePanel({
           Create secure link
         </button>
       </form>
+      )}
       {created && (
         <div className="mt-3 rounded-md border border-teal/20 bg-mint p-3 text-sm">
           <p className="font-medium">

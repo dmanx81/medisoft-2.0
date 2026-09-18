@@ -682,3 +682,93 @@ void test('legacy snapshots render from frozen clinical fields plus row issuance
   assert.ok(text.includes('LAB-2026-000001-R1'));
   assert.ok(text.includes('superseded'));
 });
+
+void test('amendment immediately supersedes the current issued report before R2 exists', async () => {
+  const { db, a, patientA, gluA } = await fixture();
+  try {
+    const received = await receivedOrder(db, a, patientA.id, [gluA.id]);
+    const verified = await verifyValue(db, a, received, received.tests[0].id, '85');
+    const issued = await generateReport(db, a, verified.id, {});
+    const r1 = issued.reports.find((row) => row.is_current)!;
+    assert.equal(r1.status, 'ISSUED');
+    assert.equal(r1.is_current, true);
+    const current = issued.results.find((row) => row.is_current)!;
+    const amended = await amendResult(db, a, current.id, {
+      numeric_value: '92',
+      reason: 'Transcription correction',
+      version: Number(current.version),
+    });
+    assert.equal(amended.status, 'IN_PROCESS');
+    const history = await listOrderReports(db, a, amended.id);
+    assert.equal(history.length, 1);
+    assert.equal(history[0].id, r1.id);
+    assert.equal(history[0].status, 'SUPERSEDED');
+    assert.equal(history[0].is_current, false);
+    assert.equal(history[0].successor_id, '');
+    const context = await getReportContext(db, a, amended.id);
+    assert.equal(context.complete, false);
+    assert.equal(context.order_status, 'IN_PROCESS');
+    assert.equal(context.needs_new_report, true);
+    assert.equal(context.eligible, false);
+    assert.equal(context.current_report, null);
+    const stalePdf = await downloadReportPdf(db, a, r1.id);
+    const staleText = pdfText(stalePdf.pdf);
+    assert.ok(staleText.includes('85'));
+    assert.equal(staleText.includes('92'), false);
+    assert.ok(staleText.includes('no longer the current official report'));
+    const frozen = await loadSnapshot(db, r1.id);
+    assert.equal(frozen.results[0].numeric_value, '85');
+    const superseded = (
+      await db.query<{ metadata: string }>(
+        `SELECT metadata::text AS metadata FROM audit_events
+ WHERE entity_type='LAB_REPORT' AND entity_id=$1 AND action='LAB_REPORT_SUPERSEDED'`,
+        [r1.id],
+      )
+    ).rows;
+    assert.equal(superseded.length, 1);
+    assert.equal(JSON.parse(superseded[0].metadata).successor_id, null);
+    const latest = amended.results.find((row) => row.is_current)!;
+    const recompleted = await verifyValue(
+      db,
+      a,
+      amended,
+      latest.order_test_id,
+      latest.numeric_value,
+    );
+    assert.equal(recompleted.status, 'COMPLETED');
+    const readyContext = await getReportContext(db, a, recompleted.id);
+    assert.equal(readyContext.complete, true);
+    assert.equal(readyContext.needs_new_report, true);
+    assert.equal(readyContext.eligible, true);
+    const v2 = await generateReport(db, a, recompleted.id, {});
+    const currentReport = v2.reports.find((row) => row.is_current)!;
+    const previous = v2.reports.find((row) => !row.is_current)!;
+    assert.equal(currentReport.report_version, 2);
+    assert.equal(currentReport.status, 'ISSUED');
+    assert.equal(previous.id, r1.id);
+    assert.equal(previous.status, 'SUPERSEDED');
+    assert.equal(currentReport.supersedes_id, previous.id);
+    assert.equal(previous.successor_id, currentReport.id);
+    const afterContext = await getReportContext(db, a, v2.id);
+    assert.equal(afterContext.needs_new_report, false);
+    assert.equal(afterContext.current_report?.id, currentReport.id);
+    const historical = await downloadReportPdf(db, a, previous.id);
+    const historicalText = pdfText(historical.pdf);
+    assert.ok(historicalText.includes('85'));
+    assert.ok(historicalText.includes('no longer the current official report'));
+    const currentPdf = await downloadReportPdf(db, a, currentReport.id);
+    const currentText = pdfText(currentPdf.pdf);
+    assert.ok(currentText.includes('92'));
+    assert.equal(currentText.includes('no longer the current official report'), false);
+    const generated = (
+      await db.query<{ metadata: string }>(
+        `SELECT metadata::text AS metadata FROM audit_events
+ WHERE entity_type='LAB_REPORT' AND entity_id=$1 AND action='LAB_REPORT_GENERATED'`,
+        [currentReport.id],
+      )
+    ).rows[0];
+    assert.equal(JSON.parse(generated.metadata).supersedes_id, previous.id);
+  } finally {
+    await db.close();
+  }
+});

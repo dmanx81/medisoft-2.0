@@ -96,7 +96,7 @@ export function PatientPrescriptions({
                       </Link>
                     </>
                   )}
-                  {item.status !== 'DRAFT' && item.prescription_number && (
+                  {item.status === 'FINALIZED' && item.prescription_number && (
                     <>
                       {' · '}
                       <a

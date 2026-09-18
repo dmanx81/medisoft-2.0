@@ -145,3 +145,42 @@ export async function evaluateOrderCompletion(
   }
   return { ...state, order_status: locked.status };
 }
+
+export async function supersedeCurrentReportForOrder(
+  db: QueryRunner,
+  principal: Principal,
+  orderId: string,
+  metadata: Record<string, unknown> = {},
+): Promise<{ id: string; report_version: number } | null> {
+  const current = (
+    await db.query<{
+      id: string;
+      report_number: string;
+      report_version: number;
+    }>(
+      `SELECT id,report_number,report_version FROM lab_reports
+ WHERE organization_id=$1 AND order_id=$2 AND is_current
+ FOR UPDATE`,
+      [principal.organizationId, orderId],
+    )
+  ).rows[0];
+  if (!current) return null;
+  const updated = (
+    await db.query<{ id: string }>(
+      `UPDATE lab_reports SET is_current=false,status='SUPERSEDED',updated_by=$3,version=version+1
+ WHERE organization_id=$1 AND id=$2 AND is_current
+ RETURNING id`,
+      [principal.organizationId, current.id, principal.userId],
+    )
+  ).rows[0];
+  if (!updated) return null;
+  await audit(db, principal, 'LAB_REPORT', current.id, 'LAB_REPORT_SUPERSEDED', {
+    order_id: orderId,
+    successor_id: null,
+    from_version: current.report_version,
+    report_number: current.report_number,
+    reason: 'A verified result represented by this report was amended.',
+    ...metadata,
+  });
+  return current;
+}
