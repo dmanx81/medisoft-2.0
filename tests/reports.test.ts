@@ -711,6 +711,10 @@ void test('amendment immediately supersedes the current issued report before R2 
     assert.equal(context.needs_new_report, true);
     assert.equal(context.eligible, false);
     assert.equal(context.current_report, null);
+    await assert.rejects(
+      generateReport(db, a, amended.id, {}),
+      hasCode('ORDER_NOT_COMPLETE'),
+    );
     const stalePdf = await downloadReportPdf(db, a, r1.id);
     const staleText = pdfText(stalePdf.pdf);
     assert.ok(staleText.includes('85'));
@@ -749,6 +753,7 @@ void test('amendment immediately supersedes the current issued report before R2 
     assert.equal(previous.status, 'SUPERSEDED');
     assert.equal(currentReport.supersedes_id, previous.id);
     assert.equal(previous.successor_id, currentReport.id);
+    assert.equal(v2.reports.filter((row) => row.is_current).length, 1);
     const afterContext = await getReportContext(db, a, v2.id);
     assert.equal(afterContext.needs_new_report, false);
     assert.equal(afterContext.current_report?.id, currentReport.id);
@@ -768,6 +773,50 @@ void test('amendment immediately supersedes the current issued report before R2 
       )
     ).rows[0];
     assert.equal(JSON.parse(generated.metadata).supersedes_id, previous.id);
+    const r1Snapshot = await loadSnapshot(db, r1.id);
+    assert.equal(r1Snapshot.results[0].numeric_value, '85');
+    const r2CurrentResult = v2.results.find((row) => row.is_current)!;
+    const amendedAgain = await amendResult(db, a, r2CurrentResult.id, {
+      numeric_value: '95',
+      reason: 'Second amendment after R2',
+      version: Number(r2CurrentResult.version),
+    });
+    assert.equal(amendedAgain.status, 'IN_PROCESS');
+    const afterSecond = await listOrderReports(db, a, amendedAgain.id);
+    const r2After = afterSecond.find((row) => row.id === currentReport.id)!;
+    assert.equal(r2After.status, 'SUPERSEDED');
+    assert.equal(r2After.is_current, false);
+    assert.equal(afterSecond.filter((row) => row.is_current).length, 0);
+    const secondContext = await getReportContext(db, a, amendedAgain.id);
+    assert.equal(secondContext.needs_new_report, true);
+    await assert.rejects(
+      generateReport(db, a, amendedAgain.id, {}),
+      hasCode('ORDER_NOT_COMPLETE'),
+    );
+    const latestAgain = amendedAgain.results.find((row) => row.is_current)!;
+    const recompletedAgain = await verifyValue(
+      db,
+      a,
+      amendedAgain,
+      latestAgain.order_test_id,
+      latestAgain.numeric_value,
+    );
+    const v3 = await generateReport(db, a, recompletedAgain.id, {});
+    const r3 = v3.reports.find((row) => row.is_current)!;
+    const r2Historical = v3.reports.find((row) => row.id === currentReport.id)!;
+    const r1Historical = v3.reports.find((row) => row.id === r1.id)!;
+    assert.equal(r3.report_version, 3);
+    assert.equal(r3.status, 'ISSUED');
+    assert.equal(r3.supersedes_id, r2Historical.id);
+    assert.equal(r2Historical.successor_id, r3.id);
+    assert.equal(r1Historical.status, 'SUPERSEDED');
+    assert.equal(r1Historical.is_current, false);
+    assert.equal(v3.reports.filter((row) => row.is_current).length, 1);
+    assert.equal((await loadSnapshot(db, r1.id)).results[0].numeric_value, '85');
+    assert.equal((await loadSnapshot(db, r2Historical.id)).results[0].numeric_value, '92');
+    const r3Text = pdfText((await downloadReportPdf(db, a, r3.id)).pdf);
+    assert.ok(r3Text.includes('95'));
+    assert.equal(r3Text.includes('no longer the current official report'), false);
   } finally {
     await db.close();
   }
