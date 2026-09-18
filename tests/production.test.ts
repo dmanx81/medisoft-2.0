@@ -265,6 +265,159 @@ void test('migrations 001 through 011 apply in order on an empty engine', async 
   }
 });
 
+void test('migration 011 upgrades a database already at 010 without changing existing prescriptions', async () => {
+  const names = [
+    '001_foundation.sql',
+    '002_patient_crm.sql',
+    '003_lab_catalogue.sql',
+    '004_lab_orders_specimens.sql',
+    '005_lab_results.sql',
+    '006_lab_reports.sql',
+    '007_report_sharing.sql',
+    '008_billing.sql',
+    '009_billing_operations.sql',
+    '010_clinical_prescriptions.sql',
+  ];
+  const db = new PGlite();
+  try {
+    for (const name of names)
+      await db.exec(
+        await readFile(new URL(`../db/migrations/${name}`, import.meta.url), 'utf8'),
+      );
+    const org = (
+      await db.query<{ id: string }>(
+        "INSERT INTO organizations(name,slug,type,country) VALUES('Clinic','upgrade-clinic','CLINIC','AL') RETURNING id",
+      )
+    ).rows[0].id;
+    const user = (
+      await db.query<{ id: string }>(
+        "INSERT INTO users(organization_id,name,email,password_hash,role) VALUES($1,'Admin','upgrade@example.test','unused','ORG_ADMIN') RETURNING id",
+        [org],
+      )
+    ).rows[0].id;
+    const patient = (
+      await db.query<{ id: string }>(
+        `INSERT INTO patients(organization_id,patient_number,first_name,last_name,date_of_birth,sex,created_by,updated_by)
+ VALUES($1,'PAT-2026-000001','Ada','Patient','1990-01-01','FEMALE',$2,$2) RETURNING id`,
+        [org, user],
+      )
+    ).rows[0].id;
+    const doctorUser = (
+      await db.query<{ id: string }>(
+        "INSERT INTO users(organization_id,name,email,password_hash,role) VALUES($1,'Doctor','upgrade-doc@example.test','unused','DOCTOR') RETURNING id",
+        [org],
+      )
+    ).rows[0].id;
+    const doctor = (
+      await db.query<{ id: string }>(
+        `INSERT INTO clinical_doctors(organization_id,user_id,first_name,last_name,display_name,created_by,updated_by)
+ VALUES($1,$2,'Elena','Hoxha','Dr Elena Hoxha',$3,$3) RETURNING id`,
+        [org, doctorUser, user],
+      )
+    ).rows[0].id;
+    const prescription = (
+      await db.query<{ id: string; status: string }>(
+        `INSERT INTO clinical_prescriptions(organization_id,patient_id,doctor_id,clinical_note,created_by,updated_by)
+ VALUES($1,$2,$3,'Pre-011 draft',$4,$4) RETURNING id,status`,
+        [org, patient, doctor, user],
+      )
+    ).rows[0];
+    await db.query(
+      `INSERT INTO clinical_prescription_items(organization_id,prescription_id,sort_order,medication_name,strength,form,dose,route,frequency,duration,quantity,instructions)
+ VALUES($1,$2,1,'Amoxicillin','500 mg','Capsule','1 capsule','Oral','3 times daily','7 days','21 capsules','After food')`,
+      [org, prescription.id],
+    );
+    await db.exec(
+      await readFile(
+        new URL('../db/migrations/011_prescription_templates.sql', import.meta.url),
+        'utf8',
+      ),
+    );
+    const survived = (
+      await db.query<{
+        id: string;
+        status: string;
+        clinical_note: string;
+        source_template_id: string | null;
+      }>(
+        `SELECT id,status,clinical_note,source_template_id FROM clinical_prescriptions WHERE id=$1`,
+        [prescription.id],
+      )
+    ).rows[0];
+    assert.equal(survived.id, prescription.id);
+    assert.equal(survived.status, 'DRAFT');
+    assert.equal(survived.clinical_note, 'Pre-011 draft');
+    assert.equal(survived.source_template_id, null);
+    const items = (
+      await db.query<{ medication_name: string }>(
+        'SELECT medication_name FROM clinical_prescription_items WHERE prescription_id=$1',
+        [prescription.id],
+      )
+    ).rows;
+    assert.equal(items.length, 1);
+    assert.equal(items[0].medication_name, 'Amoxicillin');
+    const template = (
+      await db.query<{ id: string }>(
+        `INSERT INTO prescription_templates(organization_id,name,created_by,updated_by)
+ VALUES($1,'Acute Tonsillitis',$2,$2) RETURNING id`,
+        [org, user],
+      )
+    ).rows[0];
+    await db.query(
+      `INSERT INTO prescription_template_items(organization_id,template_id,sort_order,medication_name)
+ VALUES($1,$2,1,'Paracetamol')`,
+      [org, template.id],
+    );
+    await assert.rejects(
+      db.query(
+        `INSERT INTO prescription_templates(organization_id,name,created_by,updated_by)
+ VALUES($1,'acute tonsillitis',$2,$2)`,
+        [org, user],
+      ),
+      /duplicate|unique/i,
+    );
+    await db.query(
+      'UPDATE clinical_prescriptions SET source_template_id=$2 WHERE id=$1',
+      [prescription.id, template.id],
+    );
+    await db.query('DELETE FROM prescription_templates WHERE id=$1', [template.id]);
+    const remainingItems = (
+      await db.query<{ count: string }>(
+        'SELECT count(*)::text AS count FROM prescription_template_items WHERE template_id=$1',
+        [template.id],
+      )
+    ).rows[0];
+    assert.equal(remainingItems.count, '0');
+    const afterDelete = (
+      await db.query<{
+        source_template_id: string | null;
+        status: string;
+      }>(
+        'SELECT source_template_id,status FROM clinical_prescriptions WHERE id=$1',
+        [prescription.id],
+      )
+    ).rows[0];
+    assert.equal(afterDelete.source_template_id, null);
+    assert.equal(afterDelete.status, 'DRAFT');
+    const identity = (
+      await db.query<{ id: string }>(
+        `INSERT INTO prescription_templates(organization_id,name,created_by,updated_by)
+ VALUES($1,'Identity check',$2,$2) RETURNING id`,
+        [org, user],
+      )
+    ).rows[0];
+    await assert.rejects(
+      db.query('UPDATE prescription_templates SET created_by=$2 WHERE id=$1', [
+        identity.id,
+        doctorUser,
+      ]),
+      /immutable/i,
+    );
+  } finally {
+    await db.close();
+  }
+});
+
 void test('restore script refuses to run without an explicit confirmation', () => {
   const result = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/restore.ts'], {
     env: {

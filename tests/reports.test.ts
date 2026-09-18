@@ -772,3 +772,95 @@ void test('amendment immediately supersedes the current issued report before R2 
     await db.close();
   }
 });
+
+void test('repeated amendments issue R1 then R2 then R3 with frozen historical snapshots', async () => {
+  const { db, a, patientA, gluA } = await fixture();
+  try {
+    const received = await receivedOrder(db, a, patientA.id, [gluA.id]);
+    const verified = await verifyValue(db, a, received, received.tests[0].id, '85');
+    const issued = await generateReport(db, a, verified.id, {});
+    const r1 = issued.reports.find((row) => row.is_current)!;
+    assert.equal(r1.report_version, 1);
+    const current1 = issued.results.find((row) => row.is_current)!;
+    const amended1 = await amendResult(db, a, current1.id, {
+      numeric_value: '92',
+      reason: 'First correction',
+      version: Number(current1.version),
+    });
+    assert.equal(amended1.status, 'IN_PROCESS');
+    const afterAmend1 = await listOrderReports(db, a, amended1.id);
+    assert.equal(afterAmend1.length, 1);
+    assert.equal(afterAmend1[0].status, 'SUPERSEDED');
+    assert.equal(afterAmend1[0].is_current, false);
+    const latest1 = amended1.results.find((row) => row.is_current)!;
+    const recompleted1 = await verifyValue(
+      db,
+      a,
+      amended1,
+      latest1.order_test_id,
+      latest1.numeric_value,
+    );
+    const v2 = await generateReport(db, a, recompleted1.id, {});
+    const r2 = v2.reports.find((row) => row.is_current)!;
+    const historical1 = v2.reports.find((row) => row.id === r1.id)!;
+    assert.equal(r2.report_version, 2);
+    assert.equal(r2.status, 'ISSUED');
+    assert.equal(r2.is_current, true);
+    assert.equal(historical1.status, 'SUPERSEDED');
+    assert.equal(r2.supersedes_id, r1.id);
+    assert.equal(historical1.successor_id, r2.id);
+    const frozenR1 = await loadSnapshot(db, r1.id);
+    assert.equal(frozenR1.results[0].numeric_value, '85');
+    const current2 = v2.results.find((row) => row.is_current)!;
+    const amended2 = await amendResult(db, a, current2.id, {
+      numeric_value: '110',
+      reason: 'Second correction',
+      version: Number(current2.version),
+    });
+    assert.equal(amended2.status, 'IN_PROCESS');
+    const afterAmend2 = await listOrderReports(db, a, amended2.id);
+    const r2After = afterAmend2.find((row) => row.id === r2.id)!;
+    assert.equal(r2After.status, 'SUPERSEDED');
+    assert.equal(r2After.is_current, false);
+    assert.equal(afterAmend2.filter((row) => row.is_current).length, 0);
+    const frozenR2 = await loadSnapshot(db, r2.id);
+    assert.equal(frozenR2.results[0].numeric_value, '92');
+    const latest2 = amended2.results.find((row) => row.is_current)!;
+    const recompleted2 = await verifyValue(
+      db,
+      a,
+      amended2,
+      latest2.order_test_id,
+      latest2.numeric_value,
+    );
+    assert.equal(recompleted2.status, 'COMPLETED');
+    const v3 = await generateReport(db, a, recompleted2.id, {});
+    const r3 = v3.reports.find((row) => row.is_current)!;
+    const stillR1 = v3.reports.find((row) => row.id === r1.id)!;
+    const stillR2 = v3.reports.find((row) => row.id === r2.id)!;
+    assert.equal(v3.reports.length, 3);
+    assert.equal(r3.report_version, 3);
+    assert.equal(r3.status, 'ISSUED');
+    assert.equal(r3.is_current, true);
+    assert.equal(v3.reports.filter((row) => row.is_current).length, 1);
+    assert.equal(stillR1.status, 'SUPERSEDED');
+    assert.equal(stillR2.status, 'SUPERSEDED');
+    assert.equal(r3.supersedes_id, r2.id);
+    assert.equal(stillR2.successor_id, r3.id);
+    assert.equal(stillR1.successor_id, r2.id);
+    assert.equal((await loadSnapshot(db, r1.id)).results[0].numeric_value, '85');
+    assert.equal((await loadSnapshot(db, r2.id)).results[0].numeric_value, '92');
+    assert.equal((await loadSnapshot(db, r3.id)).results[0].numeric_value, '110');
+    const r1Pdf = pdfText((await downloadReportPdf(db, a, r1.id)).pdf);
+    const r2Pdf = pdfText((await downloadReportPdf(db, a, r2.id)).pdf);
+    const r3Pdf = pdfText((await downloadReportPdf(db, a, r3.id)).pdf);
+    assert.ok(r1Pdf.includes('85'));
+    assert.ok(r1Pdf.includes('no longer the current official report'));
+    assert.ok(r2Pdf.includes('92'));
+    assert.ok(r2Pdf.includes('no longer the current official report'));
+    assert.ok(r3Pdf.includes('110'));
+    assert.equal(r3Pdf.includes('no longer the current official report'), false);
+  } finally {
+    await db.close();
+  }
+});

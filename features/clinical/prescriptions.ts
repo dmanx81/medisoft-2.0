@@ -451,7 +451,13 @@ export async function applyTemplateToPrescription(
         'CONFLICT',
         'This prescription was changed by someone else. Reload and try again.',
       );
-    await requireDoctor(db, principal, locked.doctor_id, false);
+    await requireDoctor(
+      db,
+      principal,
+      locked.doctor_id,
+      false,
+      'You can only apply templates to prescriptions associated with your own doctor profile.',
+    );
     const templateLock = (
       await db.query<{ id: string; is_active: boolean }>(
         `SELECT id,is_active FROM prescription_templates

@@ -9,6 +9,7 @@ import {
   applyTemplateToPrescription,
   cancelPrescription,
   createPrescription,
+  downloadPrescriptionPdf,
   finalizePrescription,
   getPrescription,
   updatePrescription,
@@ -370,6 +371,19 @@ void test('applying a template copies independent medications into a draft presc
     const surviving = await getPrescription(db, a, edited.id);
     assert.equal(surviving.items.length, 2);
     assert.equal(surviving.source_template_id, '');
+    const frozen = await finalizePrescription(db, a, surviving.id, {
+      version: surviving.version,
+    });
+    assert.equal(frozen.status, 'FINALIZED');
+    assert.equal(frozen.items[0].medication_name, 'Amoxicillin');
+    assert.equal(frozen.items[0].dose, '2 capsules');
+    await assert.rejects(
+      applyTemplateToPrescription(db, a, frozen.id, {
+        template_id: live.id,
+        version: frozen.version,
+      }),
+      hasCode('CONFLICT'),
+    );
     await assert.rejects(
       createPrescription(db, a, {
         patient_id: patientA.id,
@@ -462,6 +476,165 @@ void test('finalized and cancelled prescriptions cannot be modified through temp
       }),
       hasCode('FORBIDDEN'),
     );
+  } finally {
+    await db.close();
+  }
+});
+
+void test('same-org doctors cannot apply templates to or cancel another doctor’s prescription', async () => {
+  const { db, a, b, patientA, patientB, doctorUserA, doctorUserB } = await fixture();
+  try {
+    const doctorA = await staffDoctor(db, a, doctorUserA, 'Dr Alice');
+    const doctorBUser = (
+      await db.query<{ id: string }>(
+        "INSERT INTO users(organization_id,name,email,password_hash,role) VALUES($1,'Dr Bob',$2,'unused','DOCTOR') RETURNING id",
+        [a.organizationId, 'bob-same-org@example.test'],
+      )
+    ).rows[0].id;
+    const doctorB = await staffDoctor(db, a, doctorBUser, 'Dr Bob');
+    const alice: Principal = {
+      ...a,
+      userId: doctorA.user_id,
+      role: 'DOCTOR',
+      name: doctorA.display_name,
+    };
+    const bob: Principal = {
+      ...a,
+      userId: doctorB.user_id,
+      role: 'DOCTOR',
+      name: doctorB.display_name,
+    };
+    const t1 = await createTemplate(db, a, tonsillitis);
+    const t2 = await createTemplate(db, a, {
+      name: 'Sinusitis pack',
+      items: [medication('Doxycycline')],
+    });
+    const inactive = await createTemplate(db, a, {
+      name: 'Retired pack',
+      is_active: false,
+      items: [medication('Cefalexin')],
+    });
+    const aliceVisible = await listTemplates(db, alice, { status: 'INACTIVE' });
+    assert.equal(
+      aliceVisible.templates.every((row) => row.is_active),
+      true,
+    );
+    await assert.rejects(getTemplate(db, alice, inactive.id), hasCode('NOT_FOUND'));
+    await assert.rejects(createTemplate(db, alice, tonsillitis), hasCode('FORBIDDEN'));
+    const draft = await createPrescription(db, alice, {
+      patient_id: patientA.id,
+      doctor_id: doctorA.id,
+      items: [],
+    });
+    const fromT1 = await applyTemplateToPrescription(db, alice, draft.id, {
+      template_id: t1.id,
+      version: draft.version,
+    });
+    assert.equal(fromT1.source_template_id, t1.id);
+    assert.equal(fromT1.items.map((item) => item.medication_name).join(','),
+      'Amoxicillin,Paracetamol');
+    const replaced = await applyTemplateToPrescription(db, alice, fromT1.id, {
+      template_id: t2.id,
+      version: fromT1.version,
+    });
+    assert.equal(replaced.source_template_id, t2.id);
+    assert.equal(replaced.items.length, 1);
+    assert.equal(replaced.items[0].medication_name, 'Doxycycline');
+    await assert.rejects(
+      applyTemplateToPrescription(db, bob, replaced.id, {
+        template_id: t1.id,
+        version: replaced.version,
+      }),
+      hasCode('FORBIDDEN'),
+    );
+    await assert.rejects(
+      applyTemplateToPrescription(db, alice, replaced.id, {
+        template_id: inactive.id,
+        version: replaced.version,
+      }),
+      hasCode('NOT_FOUND'),
+    );
+    await assert.rejects(
+      applyTemplateToPrescription(db, a, replaced.id, {
+        template_id: inactive.id,
+        version: replaced.version,
+      }),
+      hasCode('CONFLICT'),
+    );
+    await assert.rejects(downloadPrescriptionPdf(db, alice, replaced.id), hasCode('CONFLICT'));
+    const issued = await finalizePrescription(db, alice, replaced.id, {
+      version: replaced.version,
+    });
+    const pdf = await downloadPrescriptionPdf(db, alice, issued.id);
+    assert.equal(pdf.pdf.subarray(0, 4).toString(), '%PDF');
+    await assert.rejects(
+      applyTemplateToPrescription(db, alice, issued.id, {
+        template_id: t1.id,
+        version: issued.version,
+      }),
+      hasCode('CONFLICT'),
+    );
+    await assert.rejects(
+      cancelPrescription(db, bob, issued.id, {
+        reason: 'Not my prescription',
+        version: issued.version,
+      }),
+      hasCode('FORBIDDEN'),
+    );
+    const cancelled = await cancelPrescription(db, alice, issued.id, {
+      reason: 'Therapy changed',
+      version: issued.version,
+    });
+    assert.equal(cancelled.status, 'CANCELLED');
+    await assert.rejects(downloadPrescriptionPdf(db, alice, cancelled.id), hasCode('CONFLICT'));
+    await assert.rejects(
+      applyTemplateToPrescription(db, alice, cancelled.id, {
+        template_id: t1.id,
+        version: cancelled.version,
+      }),
+      hasCode('CONFLICT'),
+    );
+    await deleteTemplate(db, a, t2.id);
+    const afterDelete = await getPrescription(db, a, cancelled.id);
+    assert.equal(afterDelete.status, 'CANCELLED');
+    assert.equal(afterDelete.items[0].medication_name, 'Doxycycline');
+    assert.equal(afterDelete.source_template_id, '');
+    await assert.rejects(
+      applyTemplateToPrescription(db, bob, cancelled.id, {
+        template_id: t1.id,
+        version: afterDelete.version,
+      }),
+      hasCode('CONFLICT'),
+    );
+    const doctorAway = await staffDoctor(db, b, doctorUserB, 'Dr Away');
+    const foreign = await createPrescription(db, b, {
+      patient_id: patientB.id,
+      doctor_id: doctorAway.id,
+      items: [medication('Cefalexin')],
+    });
+    await assert.rejects(getTemplate(db, b, t1.id), hasCode('NOT_FOUND'));
+    await assert.rejects(
+      applyTemplateToPrescription(db, b, foreign.id, {
+        template_id: t1.id,
+        version: foreign.version,
+      }),
+      hasCode('NOT_FOUND'),
+    );
+    await assert.rejects(
+      applyTemplateToPrescription(db, alice, foreign.id, {
+        template_id: t1.id,
+        version: foreign.version,
+      }),
+      hasCode('NOT_FOUND'),
+    );
+    await assert.rejects(
+      cancelPrescription(db, alice, foreign.id, {
+        reason: 'Cross-organization attempt',
+        version: foreign.version,
+      }),
+      hasCode('NOT_FOUND'),
+    );
+    await assert.rejects(downloadPrescriptionPdf(db, alice, foreign.id), hasCode('NOT_FOUND'));
   } finally {
     await db.close();
   }
