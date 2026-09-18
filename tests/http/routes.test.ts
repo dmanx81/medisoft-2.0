@@ -12,6 +12,7 @@ void test('all application routes redirect anonymous and forged-cookie requests 
     '/app/laboratory/results',
     '/app/reports',
     '/app/doctors',
+    '/app/prescription-templates',
     '/app/billing',
     '/app/management/tests',
     '/app/management/users',

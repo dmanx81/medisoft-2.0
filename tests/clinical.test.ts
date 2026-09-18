@@ -42,6 +42,7 @@ const migrations = [
   '008_billing.sql',
   '009_billing_operations.sql',
   '010_clinical_prescriptions.sql',
+  '011_prescription_templates.sql',
 ];
 
 async function fixture() {

@@ -10,6 +10,7 @@ import type {
   ClinicalPrescription,
   PrescriptionItemInput,
 } from '@/features/clinical/types';
+import { TemplatePicker } from '@/components/clinical/template-picker';
 const emptyLine: PrescriptionItemInput = {
   medication_name: '',
   strength: '',
@@ -43,6 +44,9 @@ export function PrescriptionForm({
     initial?.items.length
       ? initial.items.map(({ id: _id, sort_order: _order, ...item }) => item)
       : [{ ...emptyLine }],
+  );
+  const [sourceTemplateId, setSourceTemplateId] = useState(
+    initial?.source_template_id || '',
   );
   const [failure, setFailure] = useState<Failure | null>(null);
   const [saving, setSaving] = useState(false);
@@ -83,6 +87,7 @@ export function PrescriptionForm({
               clinical_note: clinicalNote,
               instructions,
               items: items.filter((item) => item.medication_name.trim()),
+              source_template_id: sourceTemplateId || undefined,
               version: initial?.version,
             };
             const response = await fetch(
@@ -154,7 +159,17 @@ export function PrescriptionForm({
         />
       </label>
       <div>
-        <h2 className="font-medium">Medications</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-medium">Medications</h2>
+          <TemplatePicker
+            onApply={(template) => {
+              setItems(
+                template.items.length ? template.items : [{ ...emptyLine }],
+              );
+              setSourceTemplateId(template.id);
+            }}
+          />
+        </div>
         <div className="mt-3 grid gap-4">
           {items.map((item, index) => (
             <fieldset
@@ -197,6 +212,51 @@ export function PrescriptionForm({
                   onChange={(event) => changeItem(index, 'instructions', event.target.value)}
                 />
               </label>
+              <div className="flex flex-wrap gap-3 text-sm md:col-span-2">
+                <button
+                  type="button"
+                  className="text-teal"
+                  disabled={index === 0}
+                  onClick={() =>
+                    setItems((current) => {
+                      const next = [...current];
+                      const [row] = next.splice(index, 1);
+                      next.splice(index - 1, 0, row);
+                      return next;
+                    })
+                  }
+                >
+                  Move up
+                </button>
+                <button
+                  type="button"
+                  className="text-teal"
+                  disabled={index === items.length - 1}
+                  onClick={() =>
+                    setItems((current) => {
+                      const next = [...current];
+                      const [row] = next.splice(index, 1);
+                      next.splice(index + 1, 0, row);
+                      return next;
+                    })
+                  }
+                >
+                  Move down
+                </button>
+                <button
+                  type="button"
+                  className="text-coral"
+                  onClick={() =>
+                    setItems((current) =>
+                      current.length === 1
+                        ? [{ ...emptyLine }]
+                        : current.filter((_, itemIndex) => itemIndex !== index),
+                    )
+                  }
+                >
+                  Remove medication
+                </button>
+              </div>
             </fieldset>
           ))}
         </div>
